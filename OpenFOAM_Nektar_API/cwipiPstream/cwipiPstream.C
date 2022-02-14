@@ -121,6 +121,8 @@ void cwipiSend(const fvMesh& mesh, const volVectorField& vf)
     }
 }
 
+delete[] fieldsToSend;
+  
 void cwipiWait()
 {
     cwipi_wait_issend("cwipiFoam",status);
