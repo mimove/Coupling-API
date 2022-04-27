@@ -23,10 +23,14 @@ wmake cwipiIcoFoam
 ```
 
 
-## Running the tutorial case
+## Cavity tutorial case
 
 Within the cavity turorial folder, CFD is the subfolder for the OpenFOAM side, while CAA is the subfolder for the Nektar++ side.
-In the following example, the case is run on 5 cores, 2 of which are assigned to OpenFOAM and 3 to Nektar++.
+In the following example, the case is run on 5 cores, 2 of which are assigned to OpenFOAM and 3 to Nektar++. This case was run on versions 5.0 of Nektar++ and 1712 of OpenFOAM.
+
+
+
+To run the case, the following commands should be run in a terminal:
 
 ```
 cd cavity
