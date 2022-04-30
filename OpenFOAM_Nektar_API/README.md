@@ -1,6 +1,6 @@
 # Instructions to couple OpenFOAM with CWIPI
 
-cwipiIcoFoam is the a solver based on icoFoam, with a few additional lines with calls to CWIPI functions:
+cwipiIcoFoam is a solver based on icoFoam, with a few additional lines with calls to CWIPI functions:
 ```
 cwipiCoupling(mesh);
 ...
