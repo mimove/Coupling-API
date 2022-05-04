@@ -19,7 +19,7 @@
       </GLOBALSYSSOLNINFO-->
     <PARAMETERS>
       <P> TimeStep      = 1           </P>
-      <P> NumSteps      = 100               </P>
+      <P> NumSteps      = 40               </P>
       <P> FinTime       = TimeStep*NumSteps </P>
       <P> IO_CheckSteps = 20         </P>
       <P> IO_InfoSteps  = 1              </P>
