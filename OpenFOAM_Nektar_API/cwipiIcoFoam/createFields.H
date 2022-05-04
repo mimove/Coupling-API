@@ -56,3 +56,42 @@ label pRefCell = 0;
 scalar pRefValue = 0.0;
 setRefCell(p, mesh.solutionDict().subDict("PISO"), pRefCell, pRefValue);
 mesh.setFluxRequired(p.name());
+
+    volVectorField L
+    (
+        IOobject
+        (
+            "L",
+            runTime.timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::AUTO_WRITE
+        ),
+        fvc::curl(U) ^ U
+    );
+
+    volVectorField LMean
+    (
+        IOobject
+        (
+            "LMean",
+            runTime.timeName(),
+            mesh,
+            IOobject::READ_IF_PRESENT,
+            IOobject::NO_WRITE
+        ),
+        fvc::curl(U) ^ U
+    );
+
+    volVectorField LPrime
+    (
+        IOobject
+        (
+            "LPrime",
+            runTime.timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::AUTO_WRITE
+        ),
+        fvc::curl(U) ^ U
+    );
