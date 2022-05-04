@@ -45,5 +45,11 @@ timePrecision   6;
 
 runTimeModifiable true;
 
+cwipiSwitch     true;
+
+cwipiDim        3;
+
+cwipiStep       1;
+
 
 // ************************************************************************* //
