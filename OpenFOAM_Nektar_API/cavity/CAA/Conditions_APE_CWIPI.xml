@@ -20,12 +20,13 @@
     <PARAMETERS>
       <P> TimeStep      = 1           </P>
       <P> NumSteps      = 40               </P>
-      <P> FinTime       = TimeStep*NumSteps </P>
-      <P> IO_CheckSteps = 20         </P>
-      <P> IO_InfoSteps  = 1              </P>
+      <P> FinTime        = TimeStep*NumSteps </P>
+      <P> IO_CheckSteps  = 20         </P>
+      <P> IO_InfoSteps   = 1              </P>
       <P> Rho0           = 1.226                </P> <!-- Incompressible density -->
       <P> Gamma          = 1.4                  </P> <!-- Ratio of specific heats -->
       <P> Pinfinity      = 100000               </P> <!-- Ambient pressure -->
+      <P> c2             = 114192.5               </P> <!-- Speeed of sound squared (Pinfinity*Gamma/Rho0)-->
     </PARAMETERS>
 
     <VARIABLES>
