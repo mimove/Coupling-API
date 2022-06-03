@@ -44,7 +44,7 @@ Once the simulation is finished, two check points would have been saved. Those c
 -----------------------
 If you use publish any work based on this repository, we kindly ask you to cite our publication: 
 
-Moratilla-Vega, M.A., Angelino, M., Xia, H. and Page, G.J., 2022. An open-source coupled method for aeroacoustics modelling. Computer Physics Communications, p.108420. DOI: https://doi.org/10.1016/j.cpc.2022.108420
+"Moratilla-Vega, M.A., Angelino, M., Xia, H. and Page, G.J., 2022. An open-source coupled method for aeroacoustics modelling. Computer Physics Communications, p.108420. DOI: https://doi.org/10.1016/j.cpc.2022.108420"
 
 -----------------------
 
