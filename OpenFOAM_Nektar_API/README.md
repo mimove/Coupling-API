@@ -1,4 +1,4 @@
-# Instructions to couple OpenFOAM with CWIPI and Nektar++
+# Instructions to couple OpenFOAM and Nektar++ via CWIPI
 
 cwipiIcoFoam is a solver based on icoFoam, with a few additional lines with calls to CWIPI functions:
 ```
