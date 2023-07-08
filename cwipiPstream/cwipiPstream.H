@@ -35,12 +35,12 @@ namespace Foam
 
     const char *cwipiCoupling(
         const fvMesh &mesh,
-        const int cwipiDim);
+        const uint8_t cwipiDim);
 
     void cwipiSend(
         const double *sourceArray,
         const char *cwipiArgumentList,
-        const int cwipiDim);
+        const uint8_t cwipiDim);
 
     void cwipiWait();
 
@@ -48,7 +48,7 @@ namespace Foam
         const fvMesh &mesh,
         double *sourceArray,
         const pointVectorField &acousticMomentumEquation,
-        const int cwipiDim);
+        const uint8_t cwipiDim);
 
 }
 
