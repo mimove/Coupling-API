@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2022 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,32 +24,99 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Note
-    The const_cast used in this file is a temporary hack for to work around
-    bugs in OpenMPI for versions < 1.7.4
-
 \*---------------------------------------------------------------------------*/
 
-#include "UPstream.H"
-#include "PstreamReduceOps.H"
-#include "OSspecific.H"
-#include "PstreamGlobals.H"
-#include "SubList.H"
-#include "allReduce.H"
 #include "cwipiPstream.H"
+#include <cwipi.h>
+#include "Pstream.H"
+#include "PstreamReduceOps.H"
+#include "PstreamGlobals.H"
+#include "profilingPstream.H"
+#include "int.H"
+#include "SubList.H"
+#include "UPstreamWrapping.H"
+#include "collatedFileOperation.H"
 
 #include <mpi.h>
-#include <cwipi.h>
-
 #include <cstring>
 #include <cstdlib>
 #include <csignal>
 
-#if defined(WM_SP)
-    #define MPI_SCALAR MPI_FLOAT
-#elif defined(WM_DP)
-    #define MPI_SCALAR MPI_DOUBLE
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+
+// The min value and default for MPI buffers length
+constexpr int minBufLen = 20000000;
+
+// Track if we have attached MPI buffers
+static bool ourBuffers = false;
+
+// Track if we initialized MPI
+static bool ourMpi = false;
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+static void attachOurBuffers()
+{
+    if (ourBuffers)
+    {
+        return; // Already attached
+    }
+    ourBuffers = true;
+
+    // Use UPstream::mpiBufferSize (optimisationSwitch),
+    // but allow override with MPI_BUFFER_SIZE env variable (int value)
+
+#ifndef SGIMPI
+    int len = 0;
+
+    const std::string str(Foam::getEnv("MPI_BUFFER_SIZE"));
+    if (str.empty() || !Foam::read(str, len) || len <= 0)
+    {
+        len = Foam::UPstream::mpiBufferSize;
+    }
+
+    if (len < minBufLen)
+    {
+        len = minBufLen;
+    }
+
+    if (Foam::UPstream::debug)
+    {
+        Foam::Pout << "UPstream::init : buffer-size " << len << '\n';
+    }
+
+    char *buf = new char[len];
+
+    if (MPI_SUCCESS != MPI_Buffer_attach(buf, len))
+    {
+        delete[] buf;
+        Foam::Pout << "UPstream::init : could not attach buffer\n";
+    }
 #endif
+}
+
+static void detachOurBuffers()
+{
+    if (!ourBuffers)
+    {
+        return; // Nothing to detach
+    }
+    ourBuffers = false;
+
+    // Some MPI notes suggest that the return code is MPI_SUCCESS when
+    // no buffer is attached.
+    // Be extra careful and require a non-zero size as well.
+
+#ifndef SGIMPI
+    int len = 0;
+    char *buf = nullptr;
+
+    if (MPI_SUCCESS == MPI_Buffer_detach(&buf, &len) && len)
+    {
+        delete[] buf;
+    }
+#endif
+}
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -54,7 +124,7 @@ Note
 // valid parallel options vary between implementations, but flag common ones.
 // if they are not removed by MPI_Init(), the subsequent argument processing
 // will notice that they are wrong
-void Foam::UPstream::addValidParOptions(HashTable<string>& validParOptions)
+void Foam::UPstream::addValidParOptions(HashTable<string> &validParOptions)
 {
     validParOptions.insert("np", "");
     validParOptions.insert("p4pg", "PI file");
@@ -64,509 +134,364 @@ void Foam::UPstream::addValidParOptions(HashTable<string>& validParOptions)
     validParOptions.insert("machinefile", "machine file");
 }
 
-MPI_Comm localComm;
-
-bool Foam::UPstream::init(int& argc, char**& argv)
+bool Foam::UPstream::initNull()
 {
-    //MPI_Init(&argc, &argv);
-    int provided_thread_support;
-    MPI_Init_thread
-    (
-        &argc,
-        &argv,
-        MPI_THREAD_MULTIPLE,
-        &provided_thread_support
-    );
+    int flag = 0;
 
-    cwipi_init(MPI_COMM_WORLD, "cwipiFoam", &localComm);
-    int numprocs;
-    MPI_Comm_size(localComm, &numprocs);
-    int myRank;
-    MPI_Comm_rank(localComm, &myRank);
-
-    if (debug)
+    MPI_Finalized(&flag);
+    if (flag)
     {
-        Pout<< "UPstream::init : initialised with numProcs:" << numprocs
-            << " myRank:" << myRank << endl;
-    }
-
-    if (numprocs <= 1)
-    {
+        // Already finalized - this is an error
         FatalErrorInFunction
-            << "bool IPstream::init(int& argc, char**& argv) : "
-               "attempt to run parallel on 1 processor"
+            << "MPI was already finalized - cannot perform MPI_Init\n"
             << Foam::abort(FatalError);
+
+        return false;
     }
 
-
-    // Initialise parallel structure
-    setParRun(numprocs, provided_thread_support == MPI_THREAD_MULTIPLE);
-
-    #ifndef SGIMPI
-    string bufferSizeName = getEnv("MPI_BUFFER_SIZE");
-
-    if (bufferSizeName.size())
+    MPI_Initialized(&flag);
+    if (flag)
     {
-        int bufferSize = atoi(bufferSizeName.c_str());
-
-        if (bufferSize)
+        if (debug)
         {
-            MPI_Buffer_attach(new char[bufferSize], bufferSize);
+            Pout << "UPstream::initNull : was already initialized\n";
         }
     }
     else
     {
-        FatalErrorInFunction
-            << "UPstream::init(int& argc, char**& argv) : "
-            << "environment variable MPI_BUFFER_SIZE not defined"
-            << Foam::abort(FatalError);
-    }
-    #endif
+        // Not already initialized
 
-    //int processorNameLen;
-    //char processorName[MPI_MAX_PROCESSOR_NAME];
-    //
-    //MPI_Get_processor_name(processorName, &processorNameLen);
-    //processorName[processorNameLen] = '\0';
-    //Pout<< "Processor name:" << processorName << endl;
+        MPI_Init_thread(
+            nullptr, // argc
+            nullptr, // argv
+            MPI_THREAD_SINGLE,
+            &flag // provided_thread_support
+        );
+
+        ourMpi = true;
+    }
+
+    // Could also attach buffers etc.
 
     return true;
 }
 
+MPI_Comm localComm;
 
-void Foam::UPstream::exit(int errnum)
+bool Foam::UPstream::init(int &argc, char **&argv, const bool needsThread)
+{
+    int numprocs = 0, myRank = 0;
+    int provided_thread_support = 0;
+    int flag = 0;
+
+    MPI_Finalized(&flag);
+    if (flag)
+    {
+        // Already finalized - this is an error
+        FatalErrorInFunction
+            << "MPI was already finalized - cannot perform MPI_Init" << endl
+            << Foam::abort(FatalError);
+
+        return false;
+    }
+
+    MPI_Initialized(&flag);
+    if (flag)
+    {
+        // Already initialized.
+        // Warn if we've called twice, but skip if initialized externally
+
+        if (ourMpi)
+        {
+            WarningInFunction
+                << "MPI was already initialized - cannot perform MPI_Init" << nl
+                << "This could indicate an application programming error!"
+                << endl;
+
+            return true;
+        }
+        else if (debug)
+        {
+            Pout << "UPstream::init : was already initialized\n";
+        }
+    }
+    else
+    {
+        MPI_Init_thread(
+            &argc,
+            &argv,
+            (
+                needsThread
+                    ? MPI_THREAD_MULTIPLE
+                    : MPI_THREAD_SINGLE),
+            &provided_thread_support);
+
+        ourMpi = true;
+    }
+
+    // Check argument list for local world
+    label worldIndex = -1;
+    word world;
+    for (int argi = 1; argi < argc; ++argi)
+    {
+        if (strcmp(argv[argi], "-world") == 0)
+        {
+            worldIndex = argi++;
+            if (argi >= argc)
+            {
+                FatalErrorInFunction
+                    << "Missing world name to argument \"world\""
+                    << Foam::abort(FatalError);
+            }
+            world = argv[argi];
+            break;
+        }
+    }
+
+    // Filter 'world' option
+    if (worldIndex != -1)
+    {
+        for (label i = worldIndex + 2; i < argc; i++)
+        {
+            argv[i - 2] = argv[i];
+        }
+        argc -= 2;
+    }
+
+    cwipi_init(MPI_COMM_WORLD, "cwipiFoam", &localComm);
+    MPI_Comm_size(localComm, &numprocs);
+    MPI_Comm_rank(localComm, &myRank);
+
+    if (debug)
+    {
+        Pout << "UPstream::init :"
+             << " thread-support : wanted:" << needsThread
+             << " obtained:"
+             << (provided_thread_support == MPI_THREAD_MULTIPLE
+                     ? "MPI_THREAD_MULTIPLE"
+                     : "MPI_THREAD_SINGLE")
+             << " procs:" << numprocs
+             << " rank:" << myRank
+             << " world:" << world << endl;
+    }
+
+    if (worldIndex == -1 && numprocs <= 1)
+    {
+        FatalErrorInFunction
+            << "attempt to run parallel on 1 processor"
+            << Foam::abort(FatalError);
+    }
+
+    // Initialise parallel structure
+    setParRun(numprocs, provided_thread_support == MPI_THREAD_MULTIPLE);
+
+    if (worldIndex != -1)
+    {
+        // During startup, so worldComm == globalComm
+
+        wordList worlds(numprocs);
+        worlds[Pstream::myProcNo(UPstream::globalComm)] = world;
+        Pstream::gatherList(worlds, UPstream::msgType(), UPstream::globalComm);
+
+        // Compact
+        if (Pstream::master(UPstream::globalComm))
+        {
+            DynamicList<word> worldNames(numprocs);
+            worldIDs_.resize_nocopy(numprocs);
+
+            forAll(worlds, proci)
+            {
+                const word &world = worlds[proci];
+
+                worldIDs_[proci] = worldNames.find(world);
+
+                if (worldIDs_[proci] == -1)
+                {
+                    worldIDs_[proci] = worldNames.size();
+                    worldNames.push_back(world);
+                }
+            }
+
+            allWorlds_.transfer(worldNames);
+        }
+        Pstream::broadcasts(UPstream::globalComm, allWorlds_, worldIDs_);
+
+        const label myWorldId =
+            worldIDs_[Pstream::myProcNo(UPstream::globalComm)];
+
+        DynamicList<label> subRanks;
+        forAll(worldIDs_, proci)
+        {
+            if (worldIDs_[proci] == myWorldId)
+            {
+                subRanks.push_back(proci);
+            }
+        }
+
+        // Allocate new communicator with globalComm as its parent
+        const label subComm =
+            UPstream::allocateCommunicator(
+                UPstream::globalComm, // parent
+                subRanks,
+                true);
+
+        // Override worldComm
+        UPstream::worldComm = subComm;
+        // For testing: warn use of non-worldComm
+        UPstream::warnComm = UPstream::worldComm;
+
+        if (debug)
+        {
+            // Check
+            int subNumProcs, subRank;
+            MPI_Comm_size(
+                PstreamGlobals::MPICommunicators_[subComm],
+                &subNumProcs);
+            MPI_Comm_rank(
+                PstreamGlobals::MPICommunicators_[subComm],
+                &subRank);
+
+            Pout << "UPstream::init : in world:" << world
+                 << " using local communicator:" << subComm
+                 << " rank " << subRank
+                 << " of " << subNumProcs
+                 << endl;
+        }
+
+        // Override Pout prefix (move to setParRun?)
+        Pout.prefix() = '[' + world + '/' + name(myProcNo(subComm)) + "] ";
+        Perr.prefix() = Pout.prefix();
+    }
+    else
+    {
+        // All processors use world 0
+        worldIDs_.resize_nocopy(numprocs);
+        worldIDs_ = 0;
+    }
+
+    attachOurBuffers();
+
+    return true;
+}
+
+void Foam::UPstream::shutdown(int errNo)
 {
     if (debug)
     {
-        Pout<< "UPstream::exit." << endl;
+        Pout << "UPstream::shutdown\n";
     }
 
-    #ifndef SGIMPI
-    int size;
-    char* buff;
-    MPI_Buffer_detach(&buff, &size);
-    delete[] buff;
-    #endif
+    int flag = 0;
 
-    if (PstreamGlobals::outstandingRequests_.size())
+    MPI_Initialized(&flag);
+    if (!flag)
     {
-        label n = PstreamGlobals::outstandingRequests_.size();
+        // No MPI initialized - we are done
+        return;
+    }
+
+    MPI_Finalized(&flag);
+    if (flag)
+    {
+        // Already finalized elsewhere?
+        if (ourMpi)
+        {
+            WarningInFunction
+                << "MPI was already finalized (by a connected program?)\n";
+        }
+        else if (debug)
+        {
+            Pout << "UPstream::shutdown : was already finalized\n";
+        }
+    }
+    else
+    {
+        detachOurBuffers();
+    }
+
+    // Warn about any outstanding requests
+    {
+        label nOutstanding = 0;
+
+        forAll(PstreamGlobals::outstandingRequests_, requestID)
+        {
+            if (!PstreamGlobals::freedRequests_.found(requestID))
+            {
+                ++nOutstanding;
+            }
+        }
+
         PstreamGlobals::outstandingRequests_.clear();
 
-        WarningInFunction
-            << "There are still " << n << " outstanding MPI_Requests." << endl
-            << "This means that your code exited before doing a"
-            << " UPstream::waitRequests()." << endl
-            << "This should not happen for a normal code exit."
-            << endl;
+        if (nOutstanding)
+        {
+            WarningInFunction
+                << "There were still " << nOutstanding
+                << " outstanding MPI_Requests." << nl
+                << "Which means your code exited before doing a "
+                << " UPstream::waitRequests()." << nl
+                << "This should not happen for a normal code exit."
+                << nl;
+        }
     }
 
     // Clean mpi communicators
     forAll(myProcNo_, communicator)
     {
-        if (myProcNo_[communicator] != -1)
+        if (myProcNo_[communicator] >= 0)
         {
             freePstreamCommunicator(communicator);
         }
     }
 
-    if (errnum == 0)
+    if (!flag)
     {
-        cwipi_delete_coupling("cwipiFoam");
-        cwipi_finalize();
-        MPI_Finalize();
-        ::exit(errnum);
-    }
-    else
-    {
-        MPI_Abort(localComm, errnum);
+        // MPI not already finalized
+
+        if (!ourMpi)
+        {
+            WarningInFunction
+                << "Finalizing MPI, but was initialized elsewhere\n";
+        }
+
+        if (errNo == 0)
+        {
+            MPI_Finalize();
+        }
+        else
+        {
+            // Abort only locally or world?
+            MPI_Abort(localComm, errNo);
+        }
     }
 }
 
+void Foam::UPstream::exit(int errNo)
+{
+    UPstream::shutdown(errNo);
+    cwipi_delete_coupling("cwipiFoam");
+    cwipi_finalize();
+    std::exit(errNo);
+}
 
 void Foam::UPstream::abort()
 {
     MPI_Abort(localComm, 1);
 }
 
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-void Foam::reduce
-(
-    scalar& Value,
-    const sumOp<scalar>& bop,
-    const int tag,
-    const label communicator
-)
-{
-    if (UPstream::warnComm != -1 && communicator != UPstream::warnComm)
-    {
-        Pout<< "** reducing:" << Value << " with comm:" << communicator
-            << " warnComm:" << UPstream::warnComm
-            << endl;
-        error::printStack(Pout);
-    }
-    allReduce(Value, 1, MPI_SCALAR, MPI_SUM, bop, tag, communicator);
-}
-
-
-void Foam::reduce
-(
-    scalar& Value,
-    const minOp<scalar>& bop,
-    const int tag,
-    const label communicator
-)
-{
-    if (UPstream::warnComm != -1 && communicator != UPstream::warnComm)
-    {
-        Pout<< "** reducing:" << Value << " with comm:" << communicator
-            << " warnComm:" << UPstream::warnComm
-            << endl;
-        error::printStack(Pout);
-    }
-    allReduce(Value, 1, MPI_SCALAR, MPI_MIN, bop, tag, communicator);
-}
-
-
-void Foam::reduce
-(
-    vector2D& Value,
-    const sumOp<vector2D>& bop,
-    const int tag,
-    const label communicator
-)
-{
-    if (UPstream::warnComm != -1 && communicator != UPstream::warnComm)
-    {
-        Pout<< "** reducing:" << Value << " with comm:" << communicator
-            << " warnComm:" << UPstream::warnComm
-            << endl;
-        error::printStack(Pout);
-    }
-    allReduce(Value, 2, MPI_SCALAR, MPI_SUM, bop, tag, communicator);
-}
-
-
-void Foam::sumReduce
-(
-    scalar& Value,
-    label& Count,
-    const int tag,
-    const label communicator
-)
-{
-    if (UPstream::warnComm != -1 && communicator != UPstream::warnComm)
-    {
-        Pout<< "** reducing:" << Value << " with comm:" << communicator
-            << " warnComm:" << UPstream::warnComm
-            << endl;
-        error::printStack(Pout);
-    }
-    vector2D twoScalars(Value, scalar(Count));
-    reduce(twoScalars, sumOp<vector2D>(), tag, communicator);
-
-    Value = twoScalars.x();
-    Count = twoScalars.y();
-}
-
-
-void Foam::reduce
-(
-    scalar& Value,
-    const sumOp<scalar>& bop,
-    const int tag,
-    const label communicator,
-    label& requestID
-)
-{
-#ifdef MPIX_COMM_TYPE_SHARED
-    // Assume mpich2 with non-blocking collectives extensions. Once mpi3
-    // is available this will change.
-    MPI_Request request;
-    scalar v = Value;
-    MPIX_Ireduce
-    (
-        &v,
-        &Value,
-        1,
-        MPI_SCALAR,
-        MPI_SUM,
-        0,              //root
-        PstreamGlobals::MPICommunicators_[communicator],
-        &request
-    );
-
-    requestID = PstreamGlobals::outstandingRequests_.size();
-    PstreamGlobals::outstandingRequests_.append(request);
-
-    if (UPstream::debug)
-    {
-        Pout<< "UPstream::allocateRequest for non-blocking reduce"
-            << " : request:" << requestID
-            << endl;
-    }
-#else
-    // Non-blocking not yet implemented in mpi
-    reduce(Value, bop, tag, communicator);
-    requestID = -1;
-#endif
-}
-
-
-void Foam::UPstream::allToAll
-(
-    const labelUList& sendData,
-    labelUList& recvData,
-    const label communicator
-)
-{
-    label np = nProcs(communicator);
-
-    if (sendData.size() != np || recvData.size() != np)
-    {
-        FatalErrorInFunction
-            << "Size of sendData " << sendData.size()
-            << " or size of recvData " << recvData.size()
-            << " is not equal to the number of processors in the domain "
-            << np
-            << Foam::abort(FatalError);
-    }
-
-    if (!UPstream::parRun())
-    {
-        recvData.deepCopy(sendData);
-    }
-    else
-    {
-        if
-        (
-            MPI_Alltoall
-            (
-                const_cast<label*>(sendData.begin()),
-                sizeof(label),
-                MPI_BYTE,
-                recvData.begin(),
-                sizeof(label),
-                MPI_BYTE,
-                PstreamGlobals::MPICommunicators_[communicator]
-            )
-        )
-        {
-            FatalErrorInFunction
-                << "MPI_Alltoall failed for " << sendData
-                << " on communicator " << communicator
-                << Foam::abort(FatalError);
-        }
-    }
-}
-
-
-void Foam::UPstream::allToAll
-(
-    const char* sendData,
-    const UList<int>& sendSizes,
-    const UList<int>& sendOffsets,
-
-    char* recvData,
-    const UList<int>& recvSizes,
-    const UList<int>& recvOffsets,
-
-    const label communicator
-)
-{
-    label np = nProcs(communicator);
-
-    if
-    (
-        sendSizes.size() != np
-     || sendOffsets.size() != np
-     || recvSizes.size() != np
-     || recvOffsets.size() != np
-    )
-    {
-        FatalErrorInFunction
-            << "Size of sendSize " << sendSizes.size()
-            << ", sendOffsets " << sendOffsets.size()
-            << ", recvSizes " << recvSizes.size()
-            << " or recvOffsets " << recvOffsets.size()
-            << " is not equal to the number of processors in the domain "
-            << np
-            << Foam::abort(FatalError);
-    }
-
-    if (!UPstream::parRun())
-    {
-        if (recvSizes[0] != sendSizes[0])
-        {
-            FatalErrorInFunction
-                << "Bytes to send " << sendSizes[0]
-                << " does not equal bytes to receive " << recvSizes[0]
-                << Foam::abort(FatalError);
-        }
-        memmove(recvData, &sendData[sendOffsets[0]], recvSizes[0]);
-    }
-    else
-    {
-        if
-        (
-            MPI_Alltoallv
-            (
-                const_cast<char*>(sendData),
-                const_cast<int*>(sendSizes.begin()),
-                const_cast<int*>(sendOffsets.begin()),
-                MPI_BYTE,
-                recvData,
-                const_cast<int*>(recvSizes.begin()),
-                const_cast<int*>(recvOffsets.begin()),
-                MPI_BYTE,
-                PstreamGlobals::MPICommunicators_[communicator]
-            )
-        )
-        {
-            FatalErrorInFunction
-                << "MPI_Alltoallv failed for sendSizes " << sendSizes
-                << " recvSizes " << recvSizes
-                << " communicator " << communicator
-                << Foam::abort(FatalError);
-        }
-    }
-}
-
-
-void Foam::UPstream::gather
-(
-    const char* sendData,
-    int sendSize,
-
-    char* recvData,
-    const UList<int>& recvSizes,
-    const UList<int>& recvOffsets,
-    const label communicator
-)
-{
-    label np = nProcs(communicator);
-
-    if
-    (
-        UPstream::master(communicator)
-     && (recvSizes.size() != np || recvOffsets.size() < np)
-    )
-    {
-        // Note: allow recvOffsets to be e.g. 1 larger than np so we
-        // can easily loop over the result
-
-        FatalErrorInFunction
-            << "Size of recvSizes " << recvSizes.size()
-            << " or recvOffsets " << recvOffsets.size()
-            << " is not equal to the number of processors in the domain "
-            << np
-            << Foam::abort(FatalError);
-    }
-
-    if (!UPstream::parRun())
-    {
-        memmove(recvData, sendData, sendSize);
-    }
-    else
-    {
-        if
-        (
-            MPI_Gatherv
-            (
-                const_cast<char*>(sendData),
-                sendSize,
-                MPI_BYTE,
-                recvData,
-                const_cast<int*>(recvSizes.begin()),
-                const_cast<int*>(recvOffsets.begin()),
-                MPI_BYTE,
-                0,
-                MPI_Comm(PstreamGlobals::MPICommunicators_[communicator])
-            )
-        )
-        {
-            FatalErrorInFunction
-                << "MPI_Gatherv failed for sendSize " << sendSize
-                << " recvSizes " << recvSizes
-                << " communicator " << communicator
-                << Foam::abort(FatalError);
-        }
-    }
-}
-
-
-void Foam::UPstream::scatter
-(
-    const char* sendData,
-    const UList<int>& sendSizes,
-    const UList<int>& sendOffsets,
-
-    char* recvData,
-    int recvSize,
-    const label communicator
-)
-{
-    label np = nProcs(communicator);
-
-    if
-    (
-        UPstream::master(communicator)
-     && (sendSizes.size() != np || sendOffsets.size() != np)
-    )
-    {
-        FatalErrorInFunction
-            << "Size of sendSizes " << sendSizes.size()
-            << " or sendOffsets " << sendOffsets.size()
-            << " is not equal to the number of processors in the domain "
-            << np
-            << Foam::abort(FatalError);
-    }
-
-    if (!UPstream::parRun())
-    {
-        memmove(recvData, sendData, recvSize);
-    }
-    else
-    {
-        if
-        (
-            MPI_Scatterv
-            (
-                const_cast<char*>(sendData),
-                const_cast<int*>(sendSizes.begin()),
-                const_cast<int*>(sendOffsets.begin()),
-                MPI_BYTE,
-                recvData,
-                recvSize,
-                MPI_BYTE,
-                0,
-                MPI_Comm(PstreamGlobals::MPICommunicators_[communicator])
-            )
-        )
-        {
-            FatalErrorInFunction
-                << "MPI_Scatterv failed for sendSizes " << sendSizes
-                << " sendOffsets " << sendOffsets
-                << " communicator " << communicator
-                << Foam::abort(FatalError);
-        }
-    }
-}
-
-
-void Foam::UPstream::allocatePstreamCommunicator
-(
+void Foam::UPstream::allocatePstreamCommunicator(
     const label parentIndex,
-    const label index
-)
+    const label index)
 {
     if (index == PstreamGlobals::MPIGroups_.size())
     {
         // Extend storage with dummy values
-        MPI_Group newGroup = MPI_GROUP_NULL;
-        PstreamGlobals::MPIGroups_.append(newGroup);
         MPI_Comm newComm = MPI_COMM_NULL;
-        PstreamGlobals::MPICommunicators_.append(newComm);
+        MPI_Group newGroup = MPI_GROUP_NULL;
+        PstreamGlobals::MPIGroups_.push_back(newGroup);
+        PstreamGlobals::MPICommunicators_.push_back(newComm);
     }
     else if (index > PstreamGlobals::MPIGroups_.size())
     {
@@ -575,55 +500,82 @@ void Foam::UPstream::allocatePstreamCommunicator
             << Foam::exit(FatalError);
     }
 
-
     if (parentIndex == -1)
     {
-        // Allocate world communicator
+        // Global communicator. Same as world communicator for single-world
 
-        if (index != UPstream::worldComm)
+        if (index != UPstream::globalComm)
         {
             FatalErrorInFunction
                 << "world communicator should always be index "
-                << UPstream::worldComm << Foam::exit(FatalError);
+                << UPstream::globalComm
+                << Foam::exit(FatalError);
         }
 
         PstreamGlobals::MPICommunicators_[index] = localComm;
         MPI_Comm_group(localComm, &PstreamGlobals::MPIGroups_[index]);
-        MPI_Comm_rank
-        (
-            PstreamGlobals::MPICommunicators_[index],
-           &myProcNo_[index]
-        );
+        MPI_Comm_rank(localComm, &myProcNo_[index]);
 
-        // Set the number of processes to the actual number
+        // Set the number of ranks to the actual number
         int numProcs;
-        MPI_Comm_size(PstreamGlobals::MPICommunicators_[index], &numProcs);
+        MPI_Comm_size(localComm, &numProcs);
 
-        //procIDs_[index] = identity(numProcs);
-        procIDs_[index].setSize(numProcs);
+        // procIDs_[index] = identity(numProcs);
+        procIDs_[index].resize_nocopy(numProcs);
         forAll(procIDs_[index], i)
         {
             procIDs_[index][i] = i;
         }
     }
+    else if (parentIndex == -2)
+    {
+        // Self communicator
+
+        PstreamGlobals::MPICommunicators_[index] = MPI_COMM_SELF;
+        MPI_Comm_group(MPI_COMM_SELF, &PstreamGlobals::MPIGroups_[index]);
+        MPI_Comm_rank(MPI_COMM_SELF, &myProcNo_[index]);
+
+        // Number of ranks is always 1 (self communicator)
+
+#ifdef FULLDEBUG
+        int numProcs;
+        MPI_Comm_size(MPI_COMM_SELF, &numProcs);
+
+        if (numProcs != 1)
+        {
+            // Already finalized - this is an error
+            FatalErrorInFunction
+                << "MPI_COMM_SELF had " << numProcs << " != 1 ranks!\n"
+                << Foam::abort(FatalError);
+        }
+#endif
+
+        procIDs_[index].resize_nocopy(1);
+        procIDs_[index] = 0;
+    }
     else
     {
         // Create new group
-        MPI_Group_incl
-        (
+        MPI_Group_incl(
             PstreamGlobals::MPIGroups_[parentIndex],
             procIDs_[index].size(),
-            procIDs_[index].begin(),
-           &PstreamGlobals::MPIGroups_[index]
-        );
+            procIDs_[index].cdata(),
+            &PstreamGlobals::MPIGroups_[index]);
 
-        // Create new communicator
-        MPI_Comm_create
-        (
+#if defined(MSMPI_VER)
+        // ms-mpi (10.0 and others?) does not have MPI_Comm_create_group
+        MPI_Comm_create(
             PstreamGlobals::MPICommunicators_[parentIndex],
             PstreamGlobals::MPIGroups_[index],
-           &PstreamGlobals::MPICommunicators_[index]
-        );
+            &PstreamGlobals::MPICommunicators_[index]);
+#else
+        // Create new communicator for this group
+        MPI_Comm_create_group(
+            PstreamGlobals::MPICommunicators_[parentIndex],
+            PstreamGlobals::MPIGroups_[index],
+            UPstream::msgType(),
+            &PstreamGlobals::MPICommunicators_[index]);
+#endif
 
         if (PstreamGlobals::MPICommunicators_[index] == MPI_COMM_NULL)
         {
@@ -631,14 +583,10 @@ void Foam::UPstream::allocatePstreamCommunicator
         }
         else
         {
-            if
-            (
-                MPI_Comm_rank
-                (
+            if (
+                MPI_Comm_rank(
                     PstreamGlobals::MPICommunicators_[index],
-                   &myProcNo_[index]
-                )
-            )
+                    &myProcNo_[index]))
             {
                 FatalErrorInFunction
                     << "Problem :"
@@ -652,245 +600,213 @@ void Foam::UPstream::allocatePstreamCommunicator
     }
 }
 
-
 void Foam::UPstream::freePstreamCommunicator(const label communicator)
 {
-    if (communicator != UPstream::worldComm)
+    // Skip placeholders and pre-defined (not allocated) communicators
+
+    if (UPstream::debug)
     {
-        if (PstreamGlobals::MPICommunicators_[communicator] != MPI_COMM_NULL)
+        Pout << "freePstreamCommunicator: " << communicator
+             << " from " << PstreamGlobals::MPICommunicators_.size() << endl;
+    }
+
+    // Not touching the first two communicators (SELF, WORLD)
+    if (communicator > 1)
+    {
+        if (MPI_COMM_NULL != PstreamGlobals::MPICommunicators_[communicator])
         {
             // Free communicator. Sets communicator to MPI_COMM_NULL
             MPI_Comm_free(&PstreamGlobals::MPICommunicators_[communicator]);
         }
-        if (PstreamGlobals::MPIGroups_[communicator] != MPI_GROUP_NULL)
+
+        if (MPI_GROUP_NULL != PstreamGlobals::MPIGroups_[communicator])
         {
-            // Free greoup. Sets group to MPI_GROUP_NULL
+            // Free group. Sets group to MPI_GROUP_NULL
             MPI_Group_free(&PstreamGlobals::MPIGroups_[communicator]);
         }
     }
 }
 
-
-Foam::label Foam::UPstream::nRequests()
+Foam::label Foam::UPstream::nRequests() noexcept
 {
     return PstreamGlobals::outstandingRequests_.size();
 }
 
-
-void Foam::UPstream::resetRequests(const label i)
+void Foam::UPstream::resetRequests(const label n)
 {
-    if (i < PstreamGlobals::outstandingRequests_.size())
+    if (n >= 0 && n < PstreamGlobals::outstandingRequests_.size())
     {
-        PstreamGlobals::outstandingRequests_.setSize(i);
+        PstreamGlobals::outstandingRequests_.resize(n);
     }
 }
 
-
 void Foam::UPstream::waitRequests(const label start)
 {
-    if (debug)
+    if (!UPstream::parRun())
     {
-        Pout<< "UPstream::waitRequests : starting wait for "
-            << PstreamGlobals::outstandingRequests_.size()-start
-            << " outstanding requests starting at " << start << endl;
+        return; // No-op for non-parallel
     }
+
+    if (UPstream::debug)
+    {
+        Pout << "UPstream::waitRequests : starting wait for "
+             << PstreamGlobals::outstandingRequests_.size() - start
+             << " outstanding requests starting at " << start << endl;
+    }
+
+    // TBD: check for
+    // (start < 0 || start > PstreamGlobals::outstandingRequests_.size())
 
     if (PstreamGlobals::outstandingRequests_.size())
     {
-        SubList<MPI_Request> waitRequests
-        (
+        SubList<MPI_Request> waitRequests(
             PstreamGlobals::outstandingRequests_,
             PstreamGlobals::outstandingRequests_.size() - start,
-            start
-        );
+            start);
 
-        if
-        (
-            MPI_Waitall
-            (
+        profilingPstream::beginTiming();
+
+        // On success: sets each request to MPI_REQUEST_NULL
+        if (
+            MPI_Waitall(
                 waitRequests.size(),
-                waitRequests.begin(),
-                MPI_STATUSES_IGNORE
-            )
-        )
+                waitRequests.data(),
+                MPI_STATUSES_IGNORE))
         {
             FatalErrorInFunction
                 << "MPI_Waitall returned with error" << Foam::endl;
         }
 
-        resetRequests(start);
+        profilingPstream::addWaitTime();
+
+        PstreamGlobals::outstandingRequests_.resize(start);
     }
 
     if (debug)
     {
-        Pout<< "UPstream::waitRequests : finished wait." << endl;
+        Pout << "UPstream::waitRequests : finished wait." << endl;
     }
 }
 
-
 void Foam::UPstream::waitRequest(const label i)
 {
+    if (!UPstream::parRun() || i < 0)
+    {
+        return; // No-op for non-parallel, or placeholder indices
+    }
+
     if (debug)
     {
-        Pout<< "UPstream::waitRequest : starting wait for request:" << i
-            << endl;
+        Pout << "UPstream::waitRequest : starting wait for request:" << i
+             << endl;
     }
 
     if (i >= PstreamGlobals::outstandingRequests_.size())
     {
         FatalErrorInFunction
-            << "There are " << PstreamGlobals::outstandingRequests_.size()
-            << " outstanding send requests and you are asking for i=" << i
-            << nl
-            << "Maybe you are mixing blocking/non-blocking comms?"
+            << "You asked for request=" << i
+            << " from " << PstreamGlobals::outstandingRequests_.size()
+            << " outstanding requests!" << nl
+            << "Mixing use of blocking/non-blocking comms?"
             << Foam::abort(FatalError);
     }
 
-    if
-    (
-        MPI_Wait
-        (
-           &PstreamGlobals::outstandingRequests_[i],
-            MPI_STATUS_IGNORE
-        )
-    )
+    profilingPstream::beginTiming();
+
+    // On success: sets request to MPI_REQUEST_NULL
+    if (
+        MPI_Wait(
+            &PstreamGlobals::outstandingRequests_[i],
+            MPI_STATUS_IGNORE))
     {
         FatalErrorInFunction
             << "MPI_Wait returned with error" << Foam::endl;
     }
 
+    profilingPstream::addWaitTime();
+    // Push index onto free cache
+    PstreamGlobals::freedRequests_.push_back(i);
+
     if (debug)
     {
-        Pout<< "UPstream::waitRequest : finished wait for request:" << i
-            << endl;
+        Pout << "UPstream::waitRequest : finished wait for request:" << i
+             << endl;
     }
 }
 
-
 bool Foam::UPstream::finishedRequest(const label i)
 {
+    if (!UPstream::parRun() || i < 0)
+    {
+        return true; // No-op for non-parallel, or placeholder indices
+    }
+
     if (debug)
     {
-        Pout<< "UPstream::finishedRequest : checking request:" << i
-            << endl;
+        Pout << "UPstream::finishedRequest : checking request:" << i
+             << endl;
     }
 
     if (i >= PstreamGlobals::outstandingRequests_.size())
     {
         FatalErrorInFunction
-            << "There are " << PstreamGlobals::outstandingRequests_.size()
-            << " outstanding send requests and you are asking for i=" << i
-            << nl
-            << "Maybe you are mixing blocking/non-blocking comms?"
+            << "You asked for request=" << i
+            << " from " << PstreamGlobals::outstandingRequests_.size()
+            << " outstanding requests!" << nl
+            << "Mixing use of blocking/non-blocking comms?"
             << Foam::abort(FatalError);
     }
 
+    // On success: sets request to MPI_REQUEST_NULL
     int flag;
-    MPI_Test
-    (
-       &PstreamGlobals::outstandingRequests_[i],
-       &flag,
-        MPI_STATUS_IGNORE
-    );
+    MPI_Test(
+        &PstreamGlobals::outstandingRequests_[i],
+        &flag,
+        MPI_STATUS_IGNORE);
 
     if (debug)
     {
-        Pout<< "UPstream::finishedRequest : finished request:" << i
-            << endl;
+        Pout << "UPstream::finishedRequest : finished request:" << i
+             << endl;
     }
 
     return flag != 0;
 }
 
-
-int Foam::UPstream::allocateTag(const char* s)
+int Foam::UPstream::allocateTag(const char *const msg)
 {
     int tag;
     if (PstreamGlobals::freedTags_.size())
     {
-        tag = PstreamGlobals::freedTags_.remove();
+        tag = PstreamGlobals::freedTags_.back();
+        PstreamGlobals::freedTags_.pop_back();
     }
     else
     {
-        tag = PstreamGlobals::nTags_++;
+        tag = ++PstreamGlobals::nTags_;
     }
 
     if (debug)
     {
-        //if (UPstream::lateBlocking > 0)
-        //{
-        //    string& poutp = Pout.prefix();
-        //    poutp[poutp.size()-2*(UPstream::lateBlocking+2)+tag] = 'X';
-        //    Perr.prefix() = Pout.prefix();
-        //}
-        Pout<< "UPstream::allocateTag " << s
-            << " : tag:" << tag
-            << endl;
+        Pout << "UPstream::allocateTag";
+        if (msg)
+            Pout << ' ' << msg;
+        Pout << " : tag:" << tag << endl;
     }
 
     return tag;
 }
 
-
-int Foam::UPstream::allocateTag(const word& s)
-{
-    int tag;
-    if (PstreamGlobals::freedTags_.size())
-    {
-        tag = PstreamGlobals::freedTags_.remove();
-    }
-    else
-    {
-        tag = PstreamGlobals::nTags_++;
-    }
-
-    if (debug)
-    {
-        //if (UPstream::lateBlocking > 0)
-        //{
-        //    string& poutp = Pout.prefix();
-        //    poutp[poutp.size()-2*(UPstream::lateBlocking+2)+tag] = 'X';
-        //    Perr.prefix() = Pout.prefix();
-        //}
-        Pout<< "UPstream::allocateTag " << s
-            << " : tag:" << tag
-            << endl;
-    }
-
-    return tag;
-}
-
-
-void Foam::UPstream::freeTag(const char* s, const int tag)
+void Foam::UPstream::freeTag(const int tag, const char *const msg)
 {
     if (debug)
     {
-        //if (UPstream::lateBlocking > 0)
-        //{
-        //    string& poutp = Pout.prefix();
-        //    poutp[poutp.size()-2*(UPstream::lateBlocking+2)+tag] = ' ';
-        //    Perr.prefix() = Pout.prefix();
-        //}
-        Pout<< "UPstream::freeTag " << s << " tag:" << tag << endl;
+        Pout << "UPstream::freeTag ";
+        if (msg)
+            Pout << ' ' << msg;
+        Pout << " : tag:" << tag << endl;
     }
-    PstreamGlobals::freedTags_.append(tag);
+    PstreamGlobals::freedTags_.push_back(tag);
 }
-
-
-void Foam::UPstream::freeTag(const word& s, const int tag)
-{
-    if (debug)
-    {
-        //if (UPstream::lateBlocking > 0)
-        //{
-        //    string& poutp = Pout.prefix();
-        //    poutp[poutp.size()-2*(UPstream::lateBlocking+2)+tag] = ' ';
-        //    Perr.prefix() = Pout.prefix();
-        //}
-        Pout<< "UPstream::freeTag " << s << " tag:" << tag << endl;
-    }
-    PstreamGlobals::freedTags_.append(tag);
-}
-
 
 // ************************************************************************* //

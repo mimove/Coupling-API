@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2015 OpenFOAM Foundation
+    Copyright (C) 2022 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,46 +36,67 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef PstreamGlobals_H
-#define PstreamGlobals_H
+#ifndef Foam_PstreamGlobals_H
+#define Foam_PstreamGlobals_H
 
 #include "DynamicList.H"
-
 #include <mpi.h>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
+    namespace PstreamGlobals
+    {
 
-/*---------------------------------------------------------------------------*\
-                           Class PstreamGlobals Declaration
-\*---------------------------------------------------------------------------*/
+        //- Outstanding non-blocking operations.
+        extern DynamicList<MPI_Request> outstandingRequests_;
+        extern DynamicList<label> freedRequests_;
 
-namespace PstreamGlobals
-{
+        //- Max outstanding message tag operations.
+        extern int nTags_;
 
-extern DynamicList<MPI_Request> outstandingRequests_;
+        //- Free'd message tags
+        extern DynamicList<int> freedTags_;
 
-//extern int nRequests_;
-//extern DynamicList<label> freedRequests_;
+        // Current communicators, which may be allocated or predefined
+        // (eg, MPI_COMM_SELF, MPI_COMM_WORLD)
+        extern DynamicList<MPI_Comm> MPICommunicators_;
 
-extern int nTags_;
+        // Groups associated with the currrent communicators.
+        extern DynamicList<MPI_Group> MPIGroups_;
 
-extern DynamicList<int> freedTags_;
+        // * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
 
+        //- Fatal if comm is outside the allocated range
+        void checkCommunicator(const label comm, const label toProcNo);
 
-// Current communicators. First element will be MPI_COMM_WORLD
-extern DynamicList<MPI_Comm> MPICommunicators_;
-extern DynamicList<MPI_Group> MPIGroups_;
+        //- Reuse previously freed request locations or push request onto list
+        //- of outstanding requests.
+        //
+        //  \return index of request within outstandingRequests_
+        inline label push_request(MPI_Request request)
+        {
+            label index;
 
-void checkCommunicator(const label, const label procNo);
+            if (freedRequests_.size())
+            {
+                index = freedRequests_.back();
+                freedRequests_.pop_back();
+                outstandingRequests_[index] = request;
+            }
+            else
+            {
+                index = outstandingRequests_.size();
+                outstandingRequests_.push_back(request);
+            }
 
-};
+            return index;
+        }
 
+        // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
+    } // End namespace PstreamGlobals
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

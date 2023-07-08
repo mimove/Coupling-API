@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2013-2015 OpenFOAM Foundation
+    Copyright (C) 2022 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,35 +25,57 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "UPstream.H"
 #include "PstreamGlobals.H"
+#include "profilingPstream.H"
 
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+#include <mpi.h>
 
-Foam::DynamicList<MPI_Request> Foam::PstreamGlobals::outstandingRequests_;
-Foam::DynamicList<Foam::label> Foam::PstreamGlobals::freedRequests_;
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-int Foam::PstreamGlobals::nTags_ = 0;
-
-Foam::DynamicList<int> Foam::PstreamGlobals::freedTags_;
-
-Foam::DynamicList<MPI_Comm> Foam::PstreamGlobals::MPICommunicators_;
-Foam::DynamicList<MPI_Group> Foam::PstreamGlobals::MPIGroups_;
-
-// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
-
-void Foam::PstreamGlobals::checkCommunicator(
+bool Foam::UPstream::broadcast(
+    char *buf,
+    const std::streamsize bufSize,
     const label comm,
-    const label toProcNo)
+    const int rootProcNo)
 {
-    if (comm < 0 || comm >= PstreamGlobals::MPICommunicators_.size())
+    if (!UPstream::parRun() || UPstream::nProcs(comm) < 2)
     {
-        FatalErrorInFunction
-            << "toProcNo:" << toProcNo << " : illegal communicator "
-            << comm << nl
-            << "Communicator should be within range [0,"
-            << PstreamGlobals::MPICommunicators_.size()
-            << ')' << abort(FatalError);
+        // Nothing to do - ignore
+        return true;
     }
+
+    // Needed?  PstreamGlobals::checkCommunicator(comm, rootProcNo);
+
+    if (debug)
+    {
+        Pout << "UPstream::broadcast : root:" << rootProcNo
+             << " comm:" << comm
+             << " size:" << label(bufSize)
+             << Foam::endl;
+    }
+    if (UPstream::warnComm != -1 && comm != UPstream::warnComm)
+    {
+        Pout << "UPstream::broadcast : root:" << rootProcNo
+             << " comm:" << comm
+             << " size:" << label(bufSize)
+             << " warnComm:" << UPstream::warnComm
+             << Foam::endl;
+        error::printStack(Pout);
+    }
+
+    profilingPstream::beginTiming();
+
+    bool failed = MPI_Bcast(
+        buf,
+        bufSize,
+        MPI_BYTE,
+        rootProcNo,
+        PstreamGlobals::MPICommunicators_[comm]);
+
+    profilingPstream::addBroadcastTime();
+
+    return !failed;
 }
 
 // ************************************************************************* //

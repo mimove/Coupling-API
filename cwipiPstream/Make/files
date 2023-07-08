@@ -1,7 +1,14 @@
-UOPwrite.C
-UIPread.C
-UPstream.C
 PstreamGlobals.C
+UPstream.C
+UPstreamAllToAll.C
+UPstreamBroadcast.C
+UPstreamGatherScatter.C
+UPstreamReduce.C
+
+UIPstreamRead.C
+UOPstreamWrite.C
+UIPBstreamRead.C
+UOPBstreamWrite.C
 cwipiPstream.C
 
 LIB = $(FOAM_USER_LIBBIN)/libcwipiPstream

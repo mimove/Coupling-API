@@ -23,6 +23,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "volPointInterpolation.H"
 #include "volFields.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -30,13 +31,24 @@ License
 namespace Foam
 {
 
-class fvMesh;
+    class fvMesh;
 
-void cwipiCoupling(const fvMesh& mesh);
+    const char *cwipiCoupling(
+        const fvMesh &mesh,
+        const int cwipiDim);
 
-void cwipiSend(const fvMesh& mesh, const volVectorField& vf);
+    void cwipiSend(
+        const double *sourceArray,
+        const char *cwipiArgumentList,
+        const int cwipiDim);
 
-void cwipiWait();
+    void cwipiWait();
+
+    void cwipiReshapeSourceArrays(
+        const fvMesh &mesh,
+        double *sourceArray,
+        const pointVectorField &acousticMomentumEquation,
+        const int cwipiDim);
 
 }
 
