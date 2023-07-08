@@ -73,7 +73,7 @@ volScalarField cMean(
     Foam::sqrt(thermo.gamma() * thermo.p() / thermo.rho()));
 
 // Source damping coefficient
-volScalarField sourceDamping(
+const volScalarField sourceDamping(
     IOobject(
         "sourceDamping",
         runTime.timeName(),
@@ -89,7 +89,7 @@ volScalarField sourceDamping(
 const bool lambVectorSwitch = readBool(runTime.controlDict().lookup("cwipiLambVector"));
 const bool entropyGradientSwitch = readBool(runTime.controlDict().lookup("cwipiEntropy"));
 // const bool entropyDerivativeSwitch = readBool(runTime.controlDict().lookup("cwipiDsDt"));
-const int cwipiDim = readInt(runTime.controlDict().lookup("cwipiDim"));
+const uint8_t cwipiDim = readInt(runTime.controlDict().lookup("cwipiDim"));
 const int cwipiStep = readInt(runTime.controlDict().lookup("cwipiStep"));
 int cwipiTimeStep = cwipiStep;
 

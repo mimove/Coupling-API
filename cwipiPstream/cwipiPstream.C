@@ -40,7 +40,7 @@ namespace Foam
 
     const char *cwipiCoupling(
         const fvMesh &mesh,
-        const int cwipiDim)
+        const uint8_t cwipiDim)
     {
 
         std::string cwipiArgumentList_;
@@ -71,14 +71,9 @@ namespace Foam
         case 2:
             cwipiArgumentList_ = "u0,v0";
             cwipi_add_local_string_control_parameter("sendFieldnames", "u0,v0");
-            // cwipi_add_local_int_control_parameter("nSendVars", 2);
-            // cwipi_add_local_int_control_parameter("receiveTag", sendTag);
             break;
         case 3:
             cwipiArgumentList_ = "u0,v0,w0";
-            // cwipi_add_local_string_control_parameter("sendFieldnames", "u0,v0,w0");
-            // cwipi_add_local_int_control_parameter("nSendVars", 3);
-            // cwipi_add_local_int_control_parameter("receiveTag", sendTag);
             break;
         default:
             throw std::invalid_argument("Variable cwipiDim should be 2 or 3.");
@@ -113,38 +108,8 @@ namespace Foam
     void cwipiSend(
         const double *sourceArray,
         const char *cwipiArgumentList,
-        const int cwipiDim)
+        const uint8_t cwipiDim)
     {
-        // switch (cwipiDim)
-        // {
-        // case 2:
-        //     cwipi_issend(
-        //         "cwipiFoam",
-        //         "ex1",
-        //         sendTag,
-        //         2,
-        //         1,
-        //         0,
-        //         "u0,v0",
-        //         sourceArray,
-        //         &status);
-        //     break;
-        // case 3:
-        //     cwipi_issend(
-        //         "cwipiFoam",
-        //         "ex1",
-        //         sendTag,
-        //         3,
-        //         1,
-        //         0,
-        //         "u0,v0,w0",
-        //         sourceArray,
-        //         &status);
-        //     break;
-        // default:
-        //     throw std::invalid_argument("Variable cwipiDim should be 2 or 3.");
-        //     break;
-        // }
         cwipi_issend(
             "cwipiFoam",
             "ex1",
@@ -179,7 +144,7 @@ namespace Foam
         const fvMesh &mesh,
         double *sourceArray,
         const pointVectorField &acousticMomentumEquation,
-        const int cwipiDim)
+        const uint8_t cwipiDim)
     {
         switch (cwipiDim)
         {
