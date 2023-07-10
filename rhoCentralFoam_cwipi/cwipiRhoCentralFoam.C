@@ -69,7 +69,6 @@ int main(int argc, char *argv[])
     turbulence->validate();
 
 #include "cwipiBaseFields.H"
-#include "createSpongeFields.H"
 
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

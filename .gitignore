@@ -32,10 +32,6 @@
 *.app
 
 # Project-specific ignores
-.vscode
-*/.vscode
-*/lnInclude
+*.vscode
+*lnInclude
 */Make/linux*
-/sigmaModel-v2212
-/buiTurbFoam-v2212
-makeAll.sh
