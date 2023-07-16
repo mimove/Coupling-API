@@ -70,7 +70,6 @@ namespace Foam
         {
         case 2:
             cwipiArgumentList_ = "u0,v0";
-            cwipi_add_local_string_control_parameter("sendFieldnames", "u0,v0");
             break;
         case 3:
             cwipiArgumentList_ = "u0,v0,w0";
