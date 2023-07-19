@@ -90,8 +90,8 @@ const bool lambVectorSwitch = readBool(runTime.controlDict().lookup("cwipiLambVe
 const bool entropyGradientSwitch = readBool(runTime.controlDict().lookup("cwipiEntropy"));
 // const bool entropyDerivativeSwitch = readBool(runTime.controlDict().lookup("cwipiDsDt"));
 const uint8_t cwipiDim = readInt(runTime.controlDict().lookup("cwipiDim"));
-const int cwipiStep = readInt(runTime.controlDict().lookup("cwipiStep"));
-int cwipiTimeStep = cwipiStep;
+const uint32_t cwipiStep = readInt(runTime.controlDict().lookup("cwipiStep"));
+uint32_t cwipiTimeStep = cwipiStep;
 
 volPointInterpolation pInterp(mesh);
 
@@ -101,7 +101,7 @@ volVectorField momentumEquation(
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
-        IOobject::NO_WRITE),
+        IOobject::AUTO_WRITE),
     fvc::curl(U) ^ U);
 // volScalarField continuityEquation(
 //     IOobject(
