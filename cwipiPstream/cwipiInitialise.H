@@ -4,7 +4,7 @@ const volVectorField UMean(
         "UMean",
         runTime.timeName(),
         mesh,
-        IOobject::NO_READ,
+        IOobject::MUST_READ,
         IOobject::NO_WRITE),
     mesh);
 const volScalarField rhoMean(
@@ -12,7 +12,7 @@ const volScalarField rhoMean(
         "rhoMean",
         runTime.timeName(),
         mesh,
-        IOobject::NO_READ,
+        IOobject::MUST_READ,
         IOobject::NO_WRITE),
     mesh);
 
@@ -22,7 +22,7 @@ const volVectorField LMean(
         "LMean",
         runTime.timeName(),
         mesh,
-        IOobject::NO_READ,
+        IOobject::MUST_READ,
         IOobject::NO_WRITE),
     mesh);
 volVectorField LPrime(
@@ -40,7 +40,7 @@ const volScalarField sMean(
         "sMean",
         runTime.timeName(),
         mesh,
-        IOobject::NO_READ,
+        IOobject::MUST_READ,
         IOobject::NO_WRITE),
     mesh);
 volScalarField sPrime(
@@ -58,7 +58,7 @@ const volScalarField TMean(
         "TMean",
         runTime.timeName(),
         mesh,
-        IOobject::NO_READ,
+        IOobject::MUST_READ,
         IOobject::NO_WRITE),
     mesh);
 volScalarField TPrime(
@@ -76,9 +76,19 @@ const volScalarField cMean(
         "cMean",
         runTime.timeName(),
         mesh,
-        IOobject::NO_READ,
+        IOobject::MUST_READ,
         IOobject::AUTO_WRITE),
     mesh);
+
+// Entropy gradient term
+volVectorField ThetaPrime(
+    IOobject(
+        "ThetaPrime",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE),
+    (TPrime * fvc::grad(sMean)) - (sPrime * fvc::grad(TMean)));
 
 // Source damping coefficient
 const volScalarField sourceDamping(

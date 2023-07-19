@@ -1,10 +1,13 @@
 if (cwipiTimeStep == cwipiStep)
 {
+    LPrime = L - LMean;
+    TPrime = T - TMean;
+    sPrime = s - sMean;
+    ThetaPrime = (TPrime * fvc::grad(sMean)) - (sPrime * fvc::grad(TMean));
 
     // Add Lamb vector if true
     if (lambVectorSwitch == true && entropyGradientSwitch == false)
     {
-        LPrime = L - LMean;
         momentumEquation = -LPrime * sourceDamping;
         acousticMomentumEquation = pInterp.interpolate(momentumEquation);
     }
@@ -12,19 +15,14 @@ if (cwipiTimeStep == cwipiStep)
     // Add entropy if true
     if (entropyGradientSwitch == true && lambVectorSwitch == false)
     {
-        sPrime = s - sMean;
-        TPrime = T - TMean;
-        momentumEquation = ((TPrime * fvc::grad(sMean)) - (sPrime * fvc::grad(TMean))) * sourceDamping;
+        momentumEquation = ThetaPrime * sourceDamping;
         acousticMomentumEquation = pInterp.interpolate(momentumEquation);
     }
 
     // Add Lamb vector and entropy gradient if true
     if (lambVectorSwitch == true && entropyGradientSwitch == true)
     {
-        LPrime = L - LMean;
-        sPrime = s - sMean;
-        TPrime = T - TMean;
-        momentumEquation = (((TPrime * fvc::grad(sMean)) - (sPrime * fvc::grad(TMean))) - LPrime) * sourceDamping;
+        momentumEquation = (ThetaPrime - LPrime) * sourceDamping;
         acousticMomentumEquation = pInterp.interpolate(momentumEquation);
     }
 
