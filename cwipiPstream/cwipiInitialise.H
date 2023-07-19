@@ -1,40 +1,48 @@
 // Momentum terms
-volVectorField UMean(
+const volVectorField UMean(
     IOobject(
         "UMean",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
         IOobject::NO_WRITE),
-    U);
-volScalarField rhoMean(
+    mesh);
+const volScalarField rhoMean(
     IOobject(
         "rhoMean",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
         IOobject::NO_WRITE),
-    thermo.rho());
+    mesh);
 
 // Lamb vector terms
-volVectorField LMean(
+const volVectorField LMean(
     IOobject(
         "LMean",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
         IOobject::NO_WRITE),
-    fvc::curl(U) ^ U);
+    mesh);
+volVectorField LPrime(
+    IOobject(
+        "LPrime",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE),
+    L - LMean);
 
 // Entropy terms
-volScalarField sMean(
+const volScalarField sMean(
     IOobject(
         "sMean",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
         IOobject::NO_WRITE),
-    s);
+    mesh);
 volScalarField sPrime(
     IOobject(
         "sPrime",
@@ -42,17 +50,17 @@ volScalarField sPrime(
         mesh,
         IOobject::NO_READ,
         IOobject::NO_WRITE),
-    s);
+    s - sMean);
 
 // Temperature terms
-volScalarField TMean(
+const volScalarField TMean(
     IOobject(
         "TMean",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
         IOobject::NO_WRITE),
-    thermo.T());
+    mesh);
 volScalarField TPrime(
     IOobject(
         "TPrime",
@@ -60,17 +68,17 @@ volScalarField TPrime(
         mesh,
         IOobject::NO_READ,
         IOobject::NO_WRITE),
-    thermo.T());
+    T - TMean);
 
 // Speed of sound terms
-volScalarField cMean(
+const volScalarField cMean(
     IOobject(
         "cMean",
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
         IOobject::AUTO_WRITE),
-    Foam::sqrt(thermo.gamma() * thermo.p() / thermo.rho()));
+    mesh);
 
 // Source damping coefficient
 const volScalarField sourceDamping(
