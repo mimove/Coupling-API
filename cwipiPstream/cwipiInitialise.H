@@ -5,7 +5,7 @@ const volVectorField UMean(
         runTime.timeName(),
         mesh,
         IOobject::MUST_READ,
-        IOobject::NO_WRITE),
+        IOobject::AUTO_WRITE),
     mesh);
 const volScalarField rhoMean(
     IOobject(
@@ -13,7 +13,7 @@ const volScalarField rhoMean(
         runTime.timeName(),
         mesh,
         IOobject::MUST_READ,
-        IOobject::NO_WRITE),
+        IOobject::AUTO_WRITE),
     mesh);
 
 // Lamb vector terms
@@ -23,7 +23,7 @@ const volVectorField LMean(
         runTime.timeName(),
         mesh,
         IOobject::MUST_READ,
-        IOobject::NO_WRITE),
+        IOobject::AUTO_WRITE),
     mesh);
 volVectorField LPrime(
     IOobject(
@@ -41,7 +41,7 @@ const volScalarField sMean(
         runTime.timeName(),
         mesh,
         IOobject::MUST_READ,
-        IOobject::NO_WRITE),
+        IOobject::AUTO_WRITE),
     mesh);
 volScalarField sPrime(
     IOobject(
@@ -59,7 +59,7 @@ const volScalarField TMean(
         runTime.timeName(),
         mesh,
         IOobject::MUST_READ,
-        IOobject::NO_WRITE),
+        IOobject::AUTO_WRITE),
     mesh);
 volScalarField TPrime(
     IOobject(
