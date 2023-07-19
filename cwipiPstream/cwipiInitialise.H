@@ -90,8 +90,8 @@ const bool lambVectorSwitch = readBool(runTime.controlDict().lookup("cwipiLambVe
 const bool entropyGradientSwitch = readBool(runTime.controlDict().lookup("cwipiEntropy"));
 // const bool entropyDerivativeSwitch = readBool(runTime.controlDict().lookup("cwipiDsDt"));
 const uint8_t cwipiDim = readInt(runTime.controlDict().lookup("cwipiDim"));
-const uint32_t cwipiStep = readInt(runTime.controlDict().lookup("cwipiStep"));
-uint32_t cwipiTimeStep = cwipiStep;
+const Foam::label cwipiStep = readInt(runTime.controlDict().lookup("cwipiStep"));
+Foam::label cwipiTimeStep = cwipiStep;
 
 volPointInterpolation pInterp(mesh);
 

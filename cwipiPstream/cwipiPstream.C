@@ -45,8 +45,8 @@ namespace Foam
 
         std::string cwipiArgumentList_;
         double pointCoords[3 * mesh.nPoints()];
-        uint32_t connecIdx[mesh.nCells() + 1];
-        uint32_t connec[mesh.nCells() * 8];
+        Foam::label connecIdx[mesh.nCells() + 1];
+        Foam::label connec[mesh.nCells() * 8];
         forAll(mesh.points(), i)
         {
             pointCoords[3 * i + 0] = mesh.points()[i].x();
