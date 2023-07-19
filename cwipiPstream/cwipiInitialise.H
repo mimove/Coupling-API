@@ -31,7 +31,7 @@ volVectorField LPrime(
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
-        IOobject::NO_WRITE),
+        IOobject::AUTO_WRITE),
     L - LMean);
 
 // Entropy terms
@@ -87,7 +87,7 @@ volVectorField ThetaPrime(
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
-        IOobject::NO_WRITE),
+        IOobject::AUTO_WRITE),
     (TPrime * fvc::grad(sMean)) - (sPrime * fvc::grad(TMean)));
 
 // Source damping coefficient
