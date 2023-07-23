@@ -15,6 +15,14 @@ const volScalarField rhoMean(
         IOobject::MUST_READ,
         IOobject::AUTO_WRITE),
     mesh);
+const volScalarField pMean(
+    IOobject(
+        "pMean",
+        runTime.timeName(),
+        mesh,
+        IOobject::MUST_READ,
+        IOobject::AUTO_WRITE),
+    mesh);
 
 // Lamb vector terms
 const volVectorField LMean(
