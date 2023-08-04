@@ -11,7 +11,7 @@ LIB_LIBS = $(PLIBS) \
     -lmeshTools \
     -ldynamicMesh \
     -lfiniteVolume \
-    -L$(HOME)/opt/lib64/nektar++/ -lcwp
+    -L$(HOME)/opt/lib64/nektar++ -lcwp
 
 /* Project lib dependencies */
 PROJECT_LIBS = -L$(FOAM_LIBBIN) -lOpenFOAM
