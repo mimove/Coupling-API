@@ -5,28 +5,28 @@ if (cwipiTimeStep == cwipiStep)
     sPrime = s - sMean;
     ThetaPrime = (TPrime * fvc::grad(sMean)) - (sPrime * fvc::grad(TMean));
 
-    Info << "CWIPI source strength = " << cwipiRampStrength << endl;
+    // Info << "CWIPI source strength = " << cwipiRampStrength << endl;
 
     // Add Lamb vector if true
     if (lambVectorSwitch == true && entropyGradientSwitch == false)
     {
         momentumEquation = -LPrime * sourceDamping;
-        acousticMomentumEquation = pInterp.interpolate(cwipiRampStrength * momentumEquation);
     }
 
     // Add entropy if true
     if (entropyGradientSwitch == true && lambVectorSwitch == false)
     {
         momentumEquation = ThetaPrime * sourceDamping;
-        acousticMomentumEquation = pInterp.interpolate(cwipiRampStrength * momentumEquation);
     }
 
     // Add Lamb vector and entropy gradient if true
     if (lambVectorSwitch == true && entropyGradientSwitch == true)
     {
         momentumEquation = (ThetaPrime - LPrime) * sourceDamping;
-        acousticMomentumEquation = pInterp.interpolate(cwipiRampStrength * momentumEquation);
     }
+
+    // acousticMomentumEquation = pInterp.interpolate(cwipiRampStrength * momentumEquation);
+    acousticMomentumEquation = pInterp.interpolate(momentumEquation);
 
     // if (entropyDerivativeSwitch == true)
     // {

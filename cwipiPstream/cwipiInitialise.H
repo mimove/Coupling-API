@@ -117,9 +117,9 @@ const bool entropyGradientSwitch = readBool(runTime.controlDict().lookup("cwipiE
 // const bool entropyDerivativeSwitch = readBool(runTime.controlDict().lookup("cwipiDsDt"));
 const uint8_t cwipiDim = readInt(runTime.controlDict().lookup("cwipiDim"));
 const Foam::label cwipiStep = readInt(runTime.controlDict().lookup("cwipiStep"));
-const Foam::label cwipiRampSteps = readInt(runTime.controlDict().lookup("cwipiRampSteps"));
-Foam::label cwipiRampIter = 1;
-Foam::scalar cwipiRampStrength = static_cast<Foam::scalar>(cwipiRampIter) / static_cast<Foam::scalar>(cwipiRampSteps);
+// const Foam::label cwipiRampSteps = readInt(runTime.controlDict().lookup("cwipiRampSteps"));
+// Foam::label cwipiRampIter = 1;
+// Foam::scalar cwipiRampStrength = static_cast<Foam::scalar>(cwipiRampIter) / static_cast<Foam::scalar>(cwipiRampSteps);
 Foam::label cwipiTimeStep = cwipiStep;
 
 volPointInterpolation pInterp(mesh);
