@@ -136,7 +136,7 @@ volVectorField momentumEquation(
 //         mesh,
 //         IOobject::NO_READ,
 //         IOobject::NO_WRITE),
-//     ((thermo.rho() * Foam::pow(c, 2)) / thermo.Cp()) * (fvc::ddt(s) + (U & fvc::grad(s))));
+//     (thermo.rho() / thermo.Cp()) * (fvc::ddt(s) + (U & fvc::grad(s))));
 
 pointVectorField acousticMomentumEquation = pInterp.interpolate(momentumEquation);
 // pointScalarField acousticContinuityEquation = pInterp.interpolate(continuityEquation);
