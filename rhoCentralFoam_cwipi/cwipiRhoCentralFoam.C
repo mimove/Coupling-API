@@ -80,9 +80,9 @@ int main(int argc, char *argv[])
     scalar CoNum = 0.0;
     scalar meanCoNum = 0.0;
 
-    Info
-        << "\nStarting time loop\n"
-        << endl;
+    Info << endl;
+    Info << "Starting time loop" << endl;
+    Info << endl;
 
     if (cwipiSwitch == true)
     {
@@ -108,8 +108,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    Info << "End\n"
-         << endl;
+    Info << "End" << endl;
 
     return 0;
 }

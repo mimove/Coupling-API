@@ -123,13 +123,13 @@ namespace Foam
         switch (status)
         {
         case CWIPI_EXCHANGE_OK:
-            printf("Exchange Ok\n");
+            Info << "Exchange Ok" << endl;
             break;
         case CWIPI_EXCHANGE_BAD_RECEIVING:
-            printf("Bad receiving\n");
+            Info << "Bad receiving" << endl;
             break;
         default:
-            printf("Error : bad exchange status\n");
+            Info << "Error: bad exchange status" << endl;
             break;
         }
     }
