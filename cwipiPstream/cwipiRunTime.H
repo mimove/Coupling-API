@@ -27,7 +27,7 @@ if (cwipiTimeStep == cwipiStep)
 
     // if (entropyDerivativeSwitch == true)
     // {
-    //     continuityEquation = (((rhoMean * Foam::pow(cMean, 2)) / thermo.Cp()) * (fvc::ddt(sPrime) + (UMean & fvc::grad(sPrime)))) * sourceDamping;
+    //     continuityEquation = ((rhoMean / thermo.Cp()) * (fvc::ddt(sPrime) + (UMean & fvc::grad(sPrime)))) * sourceDamping;
     //     acousticContinuityEquation = pInterp.interpolate(continuityEquation);
     // }
 
