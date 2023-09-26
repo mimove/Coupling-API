@@ -44,9 +44,15 @@ namespace Foam
     {
 
         std::string cwipiArgumentList_;
-        double pointCoords[3 * mesh.nPoints()];
-        Foam::label connecIdx[mesh.nCells() + 1];
-        Foam::label connec[mesh.nCells() * 8];
+
+        double *pointCoords = new double[3 * mesh.nPoints()];
+        int *connecIdx = new int[mesh.nCells() + 1];
+        int *connec = new int[mesh.nCells() * 8];
+
+        // double pointCoords[3 * mesh.nPoints()];
+        // Foam::label connecIdx[mesh.nCells() + 1];
+        // Foam::label connec[mesh.nCells() * 8];
+
         forAll(mesh.points(), i)
         {
             pointCoords[3 * i + 0] = mesh.points()[i].x();
@@ -69,10 +75,10 @@ namespace Foam
         switch (cwipiDim)
         {
         case 2:
-            cwipiArgumentList_ = "u0,v0";
+            cwipiArgumentList_ = "p0,u0,v0";
             break;
         case 3:
-            cwipiArgumentList_ = "u0,v0,w0";
+            cwipiArgumentList_ = "p0,u0,v0,w0";
             break;
         default:
             throw std::invalid_argument("Variable cwipiDim should be 2 or 3.");
@@ -80,7 +86,7 @@ namespace Foam
         }
         const char *cwipiArgumentList = cwipiArgumentList_.c_str();
         cwipi_add_local_string_control_parameter("sendFieldNames", cwipiArgumentList);
-        cwipi_add_local_int_control_parameter("nSendVars", cwipiDim);
+        cwipi_add_local_int_control_parameter("nSendVars", cwipiDim + 1);
         cwipi_add_local_int_control_parameter("receiveTag", sendTag);
 
         cwipi_create_coupling(
@@ -142,6 +148,7 @@ namespace Foam
     void cwipiReshapeSourceArrays(
         const fvMesh &mesh,
         double *sourceArray,
+        const pointScalarField &acousticContinuityEquation,
         const pointVectorField &acousticMomentumEquation,
         const uint8_t cwipiDim)
     {
@@ -150,16 +157,19 @@ namespace Foam
         case 2:
             forAll(mesh.points(), i)
             {
-                sourceArray[cwipiDim * i + 0] = acousticMomentumEquation[i].x();
-                sourceArray[cwipiDim * i + 1] = acousticMomentumEquation[i].y();
+                sourceArray[cwipiDim * i + 0] = 0;
+                // sourceArray[cwipiDim * i + 0] = acousticContinuityEquation[i];
+                sourceArray[cwipiDim * i + 1] = acousticMomentumEquation[i].x();
+                sourceArray[cwipiDim * i + 2] = acousticMomentumEquation[i].y();
             }
             break;
         case 3:
             forAll(mesh.points(), i)
             {
-                sourceArray[cwipiDim * i + 0] = acousticMomentumEquation[i].x();
-                sourceArray[cwipiDim * i + 1] = acousticMomentumEquation[i].y();
-                sourceArray[cwipiDim * i + 2] = acousticMomentumEquation[i].z();
+                sourceArray[cwipiDim * i + 0] = acousticContinuityEquation[i];
+                sourceArray[cwipiDim * i + 1] = acousticMomentumEquation[i].x();
+                sourceArray[cwipiDim * i + 2] = acousticMomentumEquation[i].y();
+                sourceArray[cwipiDim * i + 3] = acousticMomentumEquation[i].z();
             }
             break;
         default:

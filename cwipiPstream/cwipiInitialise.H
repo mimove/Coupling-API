@@ -114,12 +114,9 @@ const volScalarField sourceDamping(
 
 const bool lambVectorSwitch = readBool(runTime.controlDict().lookup("cwipiLambVector"));
 const bool entropyGradientSwitch = readBool(runTime.controlDict().lookup("cwipiEntropy"));
-// const bool entropyDerivativeSwitch = readBool(runTime.controlDict().lookup("cwipiDsDt"));
+const bool entropyDerivativeSwitch = readBool(runTime.controlDict().lookup("cwipiDsDt"));
 const uint8_t cwipiDim = readInt(runTime.controlDict().lookup("cwipiDim"));
 const Foam::label cwipiStep = readInt(runTime.controlDict().lookup("cwipiStep"));
-// const Foam::label cwipiRampSteps = readInt(runTime.controlDict().lookup("cwipiRampSteps"));
-// Foam::label cwipiRampIter = 1;
-// Foam::scalar cwipiRampStrength = static_cast<Foam::scalar>(cwipiRampIter) / static_cast<Foam::scalar>(cwipiRampSteps);
 Foam::label cwipiTimeStep = cwipiStep;
 
 volPointInterpolation pInterp(mesh);
@@ -132,25 +129,25 @@ volVectorField momentumEquation(
         IOobject::NO_READ,
         IOobject::AUTO_WRITE),
     fvc::curl(U) ^ U);
-// volScalarField continuityEquation(
-//     IOobject(
-//         "continuityEquation",
-//         runTime.timeName(),
-//         mesh,
-//         IOobject::NO_READ,
-//         IOobject::NO_WRITE),
-//     ((thermo.rho() * Foam::pow(c, 2)) / thermo.Cp()) * (fvc::ddt(s) + (U & fvc::grad(s))));
+volScalarField continuityEquation(
+    IOobject(
+        "continuityEquation",
+        runTime.timeName(),
+        mesh,
+        IOobject::NO_READ,
+        IOobject::NO_WRITE),
+    (thermo.rho() / thermo.Cp()) * (fvc::ddt(s) + (U & fvc::grad(s))));
 
 pointVectorField acousticMomentumEquation = pInterp.interpolate(momentumEquation);
-// pointScalarField acousticContinuityEquation = pInterp.interpolate(continuityEquation);
+pointScalarField acousticContinuityEquation = pInterp.interpolate(continuityEquation);
 forAll(mesh.points(), i)
 {
     acousticMomentumEquation[i].x() = 0;
     acousticMomentumEquation[i].y() = 0;
     acousticMomentumEquation[i].z() = 0;
-    // acousticContinuityEquation[i] = 0;
+    acousticContinuityEquation[i] = 0;
 }
 
-double sourceArray[cwipiDim * mesh.nPoints()];
+double sourceArray[(cwipiDim + 1) * mesh.nPoints()];
 // double sourceArray[mesh.nPoints()];
 const char *cwipiArgumentList = cwipiCoupling(mesh, cwipiDim);
