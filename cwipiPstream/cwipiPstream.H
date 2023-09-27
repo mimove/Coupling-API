@@ -47,6 +47,7 @@ namespace Foam
     void cwipiReshapeSourceArrays(
         const fvMesh &mesh,
         double *sourceArray,
+        const pointScalarField &acousticContinuityEquation,
         const pointVectorField &acousticMomentumEquation,
         const uint8_t cwipiDim);
 

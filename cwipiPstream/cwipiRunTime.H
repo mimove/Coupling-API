@@ -25,13 +25,21 @@ if (cwipiTimeStep == cwipiStep)
 
     acousticMomentumEquation = pInterp.interpolate(momentumEquation);
 
-    // if (entropyDerivativeSwitch == true)
-    // {
-    //     continuityEquation = ((rhoMean / thermo.Cp()) * (fvc::ddt(sPrime) + (UMean & fvc::grad(sPrime)))) * sourceDamping;
-    //     acousticContinuityEquation = pInterp.interpolate(continuityEquation);
-    // }
+    if (entropyDerivativeSwitch == true)
+    {
+        continuityEquation = ((rhoMean / thermo.Cp()) * (fvc::ddt(sPrime) + (UMean & fvc::grad(sPrime)))) * sourceDamping;
+        acousticContinuityEquation = pInterp.interpolate(continuityEquation);
+    }
 
-    cwipiReshapeSourceArrays(mesh, sourceArray, acousticMomentumEquation, cwipiDim);
+    cwipiReshapeSourceArrays(
+        mesh,
+        sourceArray,
+        acousticContinuityEquation,
+        acousticMomentumEquation,
+        cwipiDim);
 
-    cwipiSend(sourceArray, cwipiArgumentList, cwipiDim);
+    cwipiSend(
+        sourceArray,
+        cwipiArgumentList,
+        cwipiDim);
 }
