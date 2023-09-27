@@ -1,8 +1,6 @@
 # cwipiFoam
 Establishes CWIPI coupling of OpenFOAM-v2212 and Nektar++ Acoustic Solver version 5.3.0
 
-# Currently the entropy material derivative in the APE-4 continuity equation is not working
-
 Installation:  
 1) Compile Nektar++ with AcousticSolver and CWIPI; install into $HOME/opt  
 2) Compile OpenFOAM-v2212
