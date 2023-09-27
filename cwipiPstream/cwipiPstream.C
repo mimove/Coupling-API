@@ -44,9 +44,12 @@ namespace Foam
     {
 
         std::string cwipiArgumentList_;
-        double pointCoords[3 * mesh.nPoints()];
-        Foam::label connecIdx[mesh.nCells() + 1];
-        Foam::label connec[mesh.nCells() * 8];
+
+        // Have to allocate these on the heap (stack too small)
+        double *pointCoords = new double[3 * mesh.nPoints()];
+        int *connecIdx = new int[mesh.nCells() + 1];
+        int *connec = new int[mesh.nCells() * 8];
+
         forAll(mesh.points(), i)
         {
             pointCoords[3 * i + 0] = mesh.points()[i].x();
@@ -69,18 +72,18 @@ namespace Foam
         switch (cwipiDim)
         {
         case 2:
-            cwipiArgumentList_ = "u0,v0";
+            cwipiArgumentList_ = "F_0_p,F_0_u,F_0_v";
             break;
         case 3:
-            cwipiArgumentList_ = "u0,v0,w0";
+            cwipiArgumentList_ = "F_0_p,F_0_u,F_0_v,F_0_w";
             break;
         default:
             throw std::invalid_argument("Variable cwipiDim should be 2 or 3.");
             break;
         }
         const char *cwipiArgumentList = cwipiArgumentList_.c_str();
+        cwipi_add_local_int_control_parameter("nSendVars", cwipiDim + 1);
         cwipi_add_local_string_control_parameter("sendFieldNames", cwipiArgumentList);
-        cwipi_add_local_int_control_parameter("nSendVars", cwipiDim);
         cwipi_add_local_int_control_parameter("receiveTag", sendTag);
 
         cwipi_create_coupling(
@@ -88,7 +91,7 @@ namespace Foam
             CWIPI_COUPLING_PARALLEL_WITH_PARTITIONING,
             "FOAM_APE",
             3,
-            1.0,
+            1,
             CWIPI_STATIC_MESH,
             CWIPI_SOLVER_CELL_VERTEX,
             0,
@@ -100,6 +103,10 @@ namespace Foam
         sendTag = cwipi_get_distant_int_control_parameter("FOAM_APE", "receiveTag");
         cwipi_define_mesh("cwipiFoam", mesh.nPoints(), mesh.nCells(), pointCoords, connecIdx, connec);
         cwipi_locate("cwipiFoam");
+
+        // delete[] pointCoords;
+        // delete[] connecIdx;
+        // delete[] connec;
 
         return cwipiArgumentList;
     }
@@ -113,7 +120,7 @@ namespace Foam
             "cwipiFoam",
             "ex1",
             sendTag,
-            cwipiDim,
+            cwipiDim + 1,
             1,
             0,
             cwipiArgumentList,
@@ -142,6 +149,7 @@ namespace Foam
     void cwipiReshapeSourceArrays(
         const fvMesh &mesh,
         double *sourceArray,
+        const pointScalarField &acousticContinuityEquation,
         const pointVectorField &acousticMomentumEquation,
         const uint8_t cwipiDim)
     {
@@ -150,20 +158,22 @@ namespace Foam
         case 2:
             forAll(mesh.points(), i)
             {
-                sourceArray[cwipiDim * i + 0] = acousticMomentumEquation[i].x();
-                sourceArray[cwipiDim * i + 1] = acousticMomentumEquation[i].y();
+                sourceArray[((cwipiDim + 1) * i) + 0] = acousticContinuityEquation[i];
+                sourceArray[((cwipiDim + 1) * i) + 1] = acousticMomentumEquation[i].x();
+                sourceArray[((cwipiDim + 1) * i) + 2] = acousticMomentumEquation[i].y();
             }
             break;
         case 3:
             forAll(mesh.points(), i)
             {
-                sourceArray[cwipiDim * i + 0] = acousticMomentumEquation[i].x();
-                sourceArray[cwipiDim * i + 1] = acousticMomentumEquation[i].y();
-                sourceArray[cwipiDim * i + 2] = acousticMomentumEquation[i].z();
+                sourceArray[((cwipiDim + 1) * i) + 0] = acousticContinuityEquation[i];
+                sourceArray[((cwipiDim + 1) * i) + 1] = acousticMomentumEquation[i].x();
+                sourceArray[((cwipiDim + 1) * i) + 2] = acousticMomentumEquation[i].y();
+                sourceArray[((cwipiDim + 1) * i) + 3] = acousticMomentumEquation[i].z();
             }
             break;
         default:
-            Info << "\n Variable cwipiDim should be 2 or 3." << endl;
+            Info << "Variable cwipiDim should be 2 or 3." << endl;
             break;
         }
     }
