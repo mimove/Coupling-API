@@ -135,7 +135,7 @@ volScalarField continuityEquation(
         runTime.timeName(),
         mesh,
         IOobject::NO_READ,
-        IOobject::NO_WRITE),
+        IOobject::AUTO_WRITE),
     (thermo.rho() / thermo.Cp()) * (fvc::ddt(s) + (U & fvc::grad(s))));
 
 pointVectorField acousticMomentumEquation = pInterp.interpolate(momentumEquation);
