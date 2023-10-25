@@ -46,9 +46,13 @@ namespace Foam
         std::string cwipiArgumentList_;
 
         // Have to allocate these on the heap (stack too small)
-        double *pointCoords = new double[3 * mesh.nPoints()];
-        int *connecIdx = new int[mesh.nCells() + 1];
-        int *connec = new int[mesh.nCells() * 8];
+        // double *pointCoords = new double[3 * mesh.nPoints()];
+        // int *connecIdx = new int[mesh.nCells() + 1];
+        // int *connec = new int[mesh.nCells() * 8];
+
+        double pointCoords[3 * mesh.nPoints()];
+        int connecIdx[mesh.nCells() + 1];
+        int connec[mesh.nCells() * 8];
 
         forAll(mesh.points(), i)
         {
