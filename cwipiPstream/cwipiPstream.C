@@ -51,8 +51,8 @@ namespace Foam
         // int *connec = new int[mesh.nCells() * 8];
 
         double pointCoords[3 * mesh.nPoints()];
-        int pointCoords[mesh.nCells() + 1];
-        int pointCoords[mesh.nCells() * 8];
+        int connecIdx[mesh.nCells() + 1];
+        int connec[mesh.nCells() * 8];
 
         forAll(mesh.points(), i)
         {
