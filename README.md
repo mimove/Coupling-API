@@ -4,17 +4,15 @@ Establishes CWIPI coupling of OpenFOAM-v2212 and Nektar++ Acoustic Solver versio
 Installation:  
 1) Compile Nektar++ with AcousticSolver and CWIPI; install into $HOME/opt  
 2) Compile OpenFOAM-v2212
-3) Run the following commands (or add to the bottom of your .bashrc file):
+3) Create a file named loadNektar.sh
+4) Add the following lines to loadNektar.sh:
 
 export PATH=$HOME/opt/bin:$PATH
-
 export LIBRARY_PATH=$HOME/opt/lib64:$LIBRARY_PATH
-
 export LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LIBRARY_PATH
-
 export LD_LIBRARY_PATH=$HOME/opt/lib64:$LD_LIBRARY_PATH
-
 export LD_LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LD_LIBRARY_PATH
 
-6) Run wmake in cwipiPstream
-7) Run wmake in rhoCentralFoam_cwipi
+5) Run source loadNektar.sh
+7) Run wmake cwipiPstream
+8) Run wmake rhoCentralFoam_cwipi
