@@ -8,9 +8,13 @@ Installation:
 4) Add the following lines to loadNektar.sh:
 
 export PATH=$HOME/opt/bin:$PATH
+
 export LIBRARY_PATH=$HOME/opt/lib64:$LIBRARY_PATH
+
 export LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LIBRARY_PATH
+
 export LD_LIBRARY_PATH=$HOME/opt/lib64:$LD_LIBRARY_PATH
+
 export LD_LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LD_LIBRARY_PATH
 
 5) Run source loadNektar.sh
