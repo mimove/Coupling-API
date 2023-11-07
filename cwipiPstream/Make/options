@@ -5,6 +5,7 @@ EXE_INC  = $(PFLAGS) $(PINC) $(c++LESSWARN) \
     -I$(LIB_SRC)/dynamicMesh/lnInclude \
     -I$(LIB_SRC)/finiteVolume/lnInclude \
     -I$(HOME)/opt/bin/ \
+    -fwhole-program \
     -I$(HOME)/opt/include/nektar++
 
 LIB_LIBS = $(PLIBS) \
