@@ -68,7 +68,8 @@ int main(int argc, char *argv[])
 
     turbulence->validate();
 
-#include "cwipiBaseFields.H"
+    // Establish cwipi coupling
+    cwipi coupling(runTime, mesh, thermo);
 
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -84,16 +85,15 @@ int main(int argc, char *argv[])
     Info << "Starting time loop" << endl;
     Info << endl;
 
-    if (cwipiSwitch == true)
+    if (coupling.isActive() == true)
     {
 #include "cwipiInitialise.H"
         while (runTime.run())
         {
-#include "cwipiUpdateFields.H"
 #include "cwipiRunTime.H"
 #include "rhoCentralFoam.H"
             runTime.write();
-#include "cwipiTimeStep.H"
+            coupling.updateTime();
             runTime.printExecutionTime(Info);
         }
     }
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
     {
         while (runTime.run())
         {
-#include "cwipiUpdateFields.H"
+            coupling.updateFields(U, thermo);
 #include "rhoCentralFoam.H"
             runTime.write();
             runTime.printExecutionTime(Info);

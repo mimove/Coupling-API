@@ -1,4 +1,5 @@
 #!/bin/sh
+clear
 wclean cwipiPstream
 wclean rhoCentralFoam_cwipi
 wmake cwipiPstream
