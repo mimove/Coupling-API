@@ -142,7 +142,7 @@ namespace Foam
                   runTime.timeName(),
                   mesh,
                   IOobject::NO_READ,
-                  IOobject::AUTO_WRITE),
+                  IOobject::NO_WRITE),
               mesh,
               dimensionSet(0, 1, -2, 0, 0, 0, 0)),
           ThetaPrime_(
@@ -151,7 +151,7 @@ namespace Foam
                   runTime.timeName(),
                   mesh,
                   IOobject::NO_READ,
-                  IOobject::AUTO_WRITE),
+                  IOobject::NO_WRITE),
               mesh,
               dimensionSet(0, 1, -2, 0, 0, 0, 0)),
           sPrime_(
@@ -160,7 +160,7 @@ namespace Foam
                   runTime.timeName(),
                   mesh,
                   IOobject::NO_READ,
-                  IOobject::AUTO_WRITE),
+                  IOobject::NO_WRITE),
               mesh,
               dimensionSet(0, 2, -2, -1, 0, 0, 0)),
           TPrime_(
@@ -169,7 +169,7 @@ namespace Foam
                   runTime.timeName(),
                   mesh,
                   IOobject::NO_READ,
-                  IOobject::AUTO_WRITE),
+                  IOobject::NO_WRITE),
               mesh,
               dimensionSet(0, 0, 0, 1, 0, 0, 0)),
           F_p_(
@@ -178,7 +178,7 @@ namespace Foam
                   runTime.timeName(),
                   mesh,
                   IOobject::NO_READ,
-                  IOobject::AUTO_WRITE),
+                  IOobject::NO_WRITE),
               mesh,
               dimensionSet(1, -3, -1, 0, 0, 0, 0)),
           F_u_(
@@ -187,7 +187,7 @@ namespace Foam
                   runTime.timeName(),
                   mesh,
                   IOobject::NO_READ,
-                  IOobject::AUTO_WRITE),
+                  IOobject::NO_WRITE),
               mesh,
               dimensionSet(0, 1, -2, 0, 0, 0, 0))
     {
