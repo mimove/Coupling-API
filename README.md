@@ -77,7 +77,7 @@ The solver should then be run, once again in decoupled mode, until the time-aver
 
 The above combination of parameters enables CWIPI coupling for a Nektar solution grid with 2 spatial dimensions, sending all of the acoustic source fields at each time step.  The individual acoustic sources can be turned on/off with their respective named entries (cwipiLambVector, cwipiEntropy and cwipiDsDt).
 
-The cwipiStep parameter governs the frequency with which the source fields are sent to AcousticSolver; this parameter must be defined such that cwipiStep(openfoam) * timeStep(openfoam) = ReceiveSteps(Nektar++) * TimeStep(Nektar++), i.e. that the two solvers step through the same amount of simulated time for every invokation of the send() method.  As an example, a value of timeStep for the OpenFOAM solver of 1e-6 and a TimeStep value pf 1e-7 in Nektar++ necessitates cwipiStep = 1 and ReceiveStep = 10, since the ratio of time steps is 1/10.
+The cwipiStep parameter governs the frequency with which the source fields are sent to AcousticSolver; this parameter must be defined such that cwipiStep(openfoam) * timeStep(openfoam) = ReceiveSteps(Nektar++) * TimeStep(Nektar++), i.e. that the two solvers step through the same amount of simulated time for every invocation of the send() method.  As an example, a value of timeStep for the OpenFOAM solver of 1e-6 and a TimeStep value pf 1e-7 in Nektar++ necessitates cwipiStep = 1 and ReceiveStep = 10, since the ratio of time steps is 1/10.
 
 Installation:  
 1) Compile Nektar++ with AcousticSolver and CWIPI; install into $HOME/opt  
