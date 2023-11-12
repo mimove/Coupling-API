@@ -15,8 +15,13 @@ The aim of this library is to enable memory-based source coupling of compressibl
        export LD_LIBRARY_PATH=$HOME/opt/lib64:$LD_LIBRARY_PATH
        export LD_LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LD_LIBRARY_PATH
 
-6) Run source loadNektar.sh
-7) Build the coupling library by invoking ./Allwmake
+6) Add these directories to your system paths via:
+
+       source loadNektar.sh
+   
+8) Navigate to the cwipiFoam source code directory and build the coupling library via:
+
+       ./Allwmake
 
 # Instructions for creating new CWIPI solvers
 
