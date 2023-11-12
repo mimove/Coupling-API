@@ -7,7 +7,7 @@ An edited version of the rhoCentralFoam solver has been provided as an example o
 
 The call
 
-        cwipiSwitch cwipi(runTime);
+    cwipiSwitch cwipi(runTime);
 
 is used to determine whether or not the solver should be run in coupled mode by looking for the cwipiSwitch entry in system/controlDict.  One must first run the solver in decoupled mode by setting the entry cwipiSwitch to false in system/controlDict:
 
@@ -15,7 +15,7 @@ is used to determine whether or not the solver should be run in coupled mode by 
 
 The call
 
-        cwipiFields couplingFields(mesh, runTime, U, thermo);
+    cwipiFields couplingFields(mesh, runTime, U, thermo);
 
 establishes the computation of the Lamb vector, entropy and local speed of sound fields which are necessary for the coupling to work.  These fields are computed regardless of whether the solver is running in coupled or decoupled mode since it is necessary to time-average these fields before the coupling begins.  The solver should be run in decoupled mode until the start-up transient period has passed.  The user should then add time-averaging for the base flow fields, namely for U, c, T, rho, s and L to the bottom of the controlDict file:
 
@@ -85,15 +85,15 @@ The solver should then be run, once again in decoupled mode, until the time-aver
 
 In this mode, the solver will create a pointwise interpolation of the flow fields, along with a cwipiPstream object with the calls:
 
-        volPointInterpolation pInterp(mesh);
-        cwipiPstream coupling(runTime, mesh, thermo, couplingFIelds, pInterp);
+    volPointInterpolation pInterp(mesh);
+    cwipiPstream coupling(runTime, mesh, thermo, couplingFIelds, pInterp);
 
 and will send the source fields to AcousticSolver at the correct time step with the following:
 
-        if (coupling.sendNow())
-        {
-            coupling.send();
-        }
+    if (coupling.sendNow())
+    {
+        coupling.send();
+    }
 
 The aforementioned combination of parameters enables CWIPI coupling for a Nektar solution grid with 2 spatial dimensions, sending all of the acoustic source fields at each time step.  The individual acoustic sources can be turned on/off with their respective named entries (cwipiLambVector, cwipiEntropy and cwipiDsDt).
 
@@ -105,11 +105,11 @@ Installation:
 3) Create a file named loadNektar.sh
 4) Add the following lines to loadNektar.sh:
 
-        export PATH=$HOME/opt/bin:$PATH
-        export LIBRARY_PATH=$HOME/opt/lib64:$LIBRARY_PATH
-        export LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LIBRARY_PATH
-        export LD_LIBRARY_PATH=$HOME/opt/lib64:$LD_LIBRARY_PATH
-        export LD_LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LD_LIBRARY_PATH
+       export PATH=$HOME/opt/bin:$PATH
+       export LIBRARY_PATH=$HOME/opt/lib64:$LIBRARY_PATH
+       export LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LIBRARY_PATH
+       export LD_LIBRARY_PATH=$HOME/opt/lib64:$LD_LIBRARY_PATH
+       export LD_LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LD_LIBRARY_PATH
 
-5) Run source loadNektar.sh
+6) Run source loadNektar.sh
 7) Build the coupling library by invoking ./Allwmake
