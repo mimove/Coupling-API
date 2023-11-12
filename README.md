@@ -12,59 +12,111 @@ cwipiSwitch       false;
 The solver should be run in this mode until the start-up transient period has passed.  The user should then add time-averaging for the base flow fields, namely for U, c, T, rho, s and L to the bottom of the controlDict file:
 
 functions
+
 {
+
   fieldAverage0
+  
   {
+  
     type            fieldAverage;
+    
     libs            (fieldFunctionObjects);
+    
     fields
+    
     (
+    
       U
+      
       {
+      
         mean          true;
+        
         prime2Mean    false;
+        
         base          time;
+        
         allowRestart  true;
+        
       }
-      p
+      
       c
+      
       {
+      
         mean          true;
+        
         prime2Mean    false;
+        
         base          time;
+        
         allowRestart  true;
+        
       }
+      
       T
+      
       {
+      
         mean          true;
+        
         prime2Mean    false;
+        
         base          time;
+        
         allowRestart  true;
+        
       }
+      
       rho
+      
       {
+      
         mean          true;
+        
         prime2Mean    false;
+        
         base          time;
+        
         allowRestart  true;
+        
       }
+      
       s
+      
       {
+      
         mean          true;
+        
         prime2Mean    false;
+        
         base          time;
+        
         allowRestart  true;
+        
       }
+      
       L
+      
       {
+      
         mean          true;
+        
         prime2Mean    false;
+        
         base          time;
+        
         allowRestart  true;
+        
       }
+      
     );
+    
     writeControl      writeTime;
+    
   }
+  
 }
 
 The solver should then be run, once again in decoupled mode, until the time-averaged flow fields are statistically stationary.  Once this is the case, the solver can then be run in coupled mode with the following switches:
