@@ -83,7 +83,7 @@ The solver should then be run, once again in decoupled mode, until the time-aver
     cwipiEntropy      true;
     cwipiDsDt         true;
 
-In this mode, the solver will create a pointwise interpolation of the flow fields, along with a cwipiPstream object with the calls:
+In this mode, the solver will create a pointwise interpolation of the flow fields, along with a cwipiPstream object:
 
     volPointInterpolation pInterp(mesh);
     cwipiPstream coupling(runTime, mesh, thermo, couplingFIelds, pInterp);
