@@ -7,7 +7,7 @@ An edited version of the rhoCentralFoam solver has been provided as an example o
 
 To use cwipiRhoCentralFoam, one must first run the solver in decoupled mode by setting the entry cwipiSwitch to false in system/controlDict:
 
-cwipiSwitch       false;
+    cwipiSwitch       false;
 
 The solver should be run in this mode until the start-up transient period has passed.  The user should then add time-averaging for the base flow fields, namely for U, c, T, rho, s and L to the bottom of the controlDict file:
 
@@ -68,12 +68,12 @@ The solver should be run in this mode until the start-up transient period has pa
     
 The solver should then be run, once again in decoupled mode, until the time-averaged flow fields are statistically stationary.  Once this is the case, the solver can then be run in coupled mode with the following switches:
 
-cwipiSwitch       true;
-cwipiDim          2;
-cwipiStep         1;
-cwipiLambVector   true;
-cwipiEntropy      true;
-cwipiDsDt         true;
+    cwipiSwitch       true;
+    cwipiDim          2;
+    cwipiStep         1;
+    cwipiLambVector   true;
+    cwipiEntropy      true;
+    cwipiDsDt         true;
 
 The above combination of parameters enables CWIPI coupling for a Nektar solution grid with 2 spatial dimensions, sending all of the acoustic source fields at each time step.  The individual acoustic sources can be turned on/off with their respective named entries (cwipiLambVector, cwipiEntropy and cwipiDsDt).
 
