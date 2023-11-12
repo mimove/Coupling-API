@@ -13,61 +13,61 @@ The solver should be run in this mode until the start-up transient period has pa
 
 {
 
-functions
-{
-  fieldAverage0
-  {
-    type            fieldAverage;
-    libs            (fieldFunctionObjects);
-    fields
-    (
-      U
+    functions
+    {
+      fieldAverage0
       {
-        mean          true;
-        prime2Mean    false;
-        base          time;
-        allowRestart  true;
+        type            fieldAverage;
+        libs            (fieldFunctionObjects);
+        fields
+        (
+          U
+          {
+            mean          true;
+            prime2Mean    false;
+            base          time;
+            allowRestart  true;
+          }
+          c
+          {
+            mean          true;
+            prime2Mean    false;
+            base          time;
+            allowRestart  true;
+          }
+          T
+          {
+            mean          true;
+            prime2Mean    false;
+            base          time;
+            allowRestart  true;
+          }
+          rho
+          {
+            mean          true;
+            prime2Mean    false;
+            base          time;
+            allowRestart  true;
+          }
+          s
+          {
+            mean          true;
+            prime2Mean    false;
+            base          time;
+            allowRestart  true;
+          }
+          L
+          {
+            mean          true;
+            prime2Mean    false;
+            base          time;
+            allowRestart  true;
+          }
+        );
+        writeControl      writeTime;
       }
-      c
-      {
-        mean          true;
-        prime2Mean    false;
-        base          time;
-        allowRestart  true;
-      }
-      T
-      {
-        mean          true;
-        prime2Mean    false;
-        base          time;
-        allowRestart  true;
-      }
-      rho
-      {
-        mean          true;
-        prime2Mean    false;
-        base          time;
-        allowRestart  true;
-      }
-      s
-      {
-        mean          true;
-        prime2Mean    false;
-        base          time;
-        allowRestart  true;
-      }
-      L
-      {
-        mean          true;
-        prime2Mean    false;
-        base          time;
-        allowRestart  true;
-      }
-    );
-    writeControl      writeTime;
-  }
-}
-
+    }
+    
 }
 
 The solver should then be run, once again in decoupled mode, until the time-averaged flow fields are statistically stationary.  Once this is the case, the solver can then be run in coupled mode with the following switches:
