@@ -3,6 +3,23 @@ Establishes CWIPI coupling of OpenFOAM-v2212 and Nektar++ Acoustic Solver versio
 
 The aim of this library is to enable memory-based source coupling of compressible OpenFOAM solvers and Nektar++'s AcousticSolver.  The OpenFOAM solver is used to calculate the unsteady hydrodynamic source fields, which are then used as input sources by AcousticSolver to compute the propagation of noise into the far-field.  The method of memory-based coupling avoids the I/O bottleneck associated with file-based data transfer since the data is exchanged through system memory via CWIPI.
 
+# Installation instructions:
+1) Compile Nektar++ with AcousticSolver and CWIPI; install into $HOME/opt  
+2) Compile OpenFOAM-v2212
+3) Create a file named loadNektar.sh
+4) Add the following lines to loadNektar.sh:
+
+       export PATH=$HOME/opt/bin:$PATH
+       export LIBRARY_PATH=$HOME/opt/lib64:$LIBRARY_PATH
+       export LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LIBRARY_PATH
+       export LD_LIBRARY_PATH=$HOME/opt/lib64:$LD_LIBRARY_PATH
+       export LD_LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LD_LIBRARY_PATH
+
+6) Run source loadNektar.sh
+7) Build the coupling library by invoking ./Allwmake
+
+# Instructions for creating new CWIPI solvers
+
 An edited version of the rhoCentralFoam solver has been provided as an example of how to edit the source code of compressible OpenFOAM solvers to use this CWIPI coupling.
 
 The call
@@ -108,18 +125,3 @@ The solver then performs its normal I/O and updates the time step of the couplin
     runTime.write();
     coupling.updateTime();
     runTime.printExecutionTime(Info);
-
-# Installation instructions:
-1) Compile Nektar++ with AcousticSolver and CWIPI; install into $HOME/opt  
-2) Compile OpenFOAM-v2212
-3) Create a file named loadNektar.sh
-4) Add the following lines to loadNektar.sh:
-
-       export PATH=$HOME/opt/bin:$PATH
-       export LIBRARY_PATH=$HOME/opt/lib64:$LIBRARY_PATH
-       export LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LIBRARY_PATH
-       export LD_LIBRARY_PATH=$HOME/opt/lib64:$LD_LIBRARY_PATH
-       export LD_LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LD_LIBRARY_PATH
-
-6) Run source loadNektar.sh
-7) Build the coupling library by invoking ./Allwmake
