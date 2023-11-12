@@ -5,11 +5,19 @@ The aim of this library is to enable memory-based source coupling of compressibl
 
 An edited version of the rhoCentralFoam solver has been provided as an example of how to edit the source code of compressible OpenFOAM solvers to use this CWIPI coupling.
 
-To use cwipiRhoCentralFoam, one must first run the solver in decoupled mode by setting the entry cwipiSwitch to false in system/controlDict:
+The call
+
+        cwipiSwitch cwipi(runTime);
+
+is used to determine whether or not the solver should be run in coupled mode by looking for the cwipiSwitch entry in system/controlDict.  One must first run the solver in decoupled mode by setting the entry cwipiSwitch to false in system/controlDict:
 
     cwipiSwitch       false;
 
-The solver should be run in this mode until the start-up transient period has passed.  The user should then add time-averaging for the base flow fields, namely for U, c, T, rho, s and L to the bottom of the controlDict file:
+The call
+
+        cwipiFields couplingFields(mesh, runTime, U, thermo);
+
+establishes the computation of the Lamb vector, entropy and local speed of sound fields which are necessary for the coupling to work.  These fields are computed regardless of whether the solver is running in coupled or decoupled mode since it is necessary to time-average these fields before the coupling begins.  The solver should be run in decoupled mode until the start-up transient period has passed.  The user should then add time-averaging for the base flow fields, namely for U, c, T, rho, s and L to the bottom of the controlDict file:
 
     functions
     {
@@ -75,7 +83,19 @@ The solver should then be run, once again in decoupled mode, until the time-aver
     cwipiEntropy      true;
     cwipiDsDt         true;
 
-The above combination of parameters enables CWIPI coupling for a Nektar solution grid with 2 spatial dimensions, sending all of the acoustic source fields at each time step.  The individual acoustic sources can be turned on/off with their respective named entries (cwipiLambVector, cwipiEntropy and cwipiDsDt).
+In this mode, the solver will create a pointwise interpolation of the flow fields, along with a cwipiPstream object with the calls:
+
+        volPointInterpolation pInterp(mesh);
+        cwipiPstream coupling(runTime, mesh, thermo, couplingFIelds, pInterp);
+
+and will send the source fields to AcousticSolver at the correct time step with the following:
+
+        if (coupling.sendNow())
+        {
+            coupling.send();
+        }
+
+The aforementioned combination of parameters enables CWIPI coupling for a Nektar solution grid with 2 spatial dimensions, sending all of the acoustic source fields at each time step.  The individual acoustic sources can be turned on/off with their respective named entries (cwipiLambVector, cwipiEntropy and cwipiDsDt).
 
 The cwipiStep parameter governs the frequency with which the source fields are sent to AcousticSolver; this parameter must be defined such that cwipiStep(openfoam) * timeStep(openfoam) = ReceiveSteps(Nektar++) * TimeStep(Nektar++), i.e. that the two solvers step through the same amount of simulated time for every invocation of the send() method.  As an example, a value of timeStep for the OpenFOAM solver of 1e-6 and a TimeStep value pf 1e-7 in Nektar++ necessitates cwipiStep = 1 and ReceiveStep = 10, since the ratio of time steps is 1/10.
 
