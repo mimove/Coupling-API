@@ -6,8 +6,7 @@ The aim of this library is to enable memory-based source coupling of compressibl
 # Installation instructions:
 1) Compile Nektar++ with AcousticSolver and CWIPI; install into $HOME/opt  
 2) Compile OpenFOAM-v2212
-3) Create a file named loadNektar.sh
-4) Add the following lines to loadNektar.sh:
+3) Create a file named loadNektar.sh and add the following lines:
 
        export PATH=$HOME/opt/bin:$PATH
        export LIBRARY_PATH=$HOME/opt/lib64:$LIBRARY_PATH
@@ -15,11 +14,11 @@ The aim of this library is to enable memory-based source coupling of compressibl
        export LD_LIBRARY_PATH=$HOME/opt/lib64:$LD_LIBRARY_PATH
        export LD_LIBRARY_PATH=$HOME/opt/lib64/nektar++:$LD_LIBRARY_PATH
 
-6) Add these directories to your system paths via:
+4) Add these directories to your system paths via:
 
        source loadNektar.sh
    
-8) Navigate to the cwipiFoam source code directory and build the coupling library via:
+5) Navigate to the cwipiFoam source code directory and build the coupling library via:
 
        ./Allwmake
 
