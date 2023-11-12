@@ -68,9 +68,6 @@ int main(int argc, char *argv[])
 
     turbulence->validate();
 
-    // Establish cwipi coupling
-    cwipi coupling(runTime, mesh, thermo);
-
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #include "readFluxScheme.H"
@@ -85,15 +82,53 @@ int main(int argc, char *argv[])
     Info << "Starting time loop" << endl;
     Info << endl;
 
-    if (coupling.isActive() == true)
+    // Read CWIPI switch
+    cwipiSwitch cwipi(
+        runTime);
+
+    // Create CWIPI fields
+    cwipiFields couplingFields(
+        mesh,
+        runTime,
+        U,
+        thermo);
+
+    // Is solver running in coupled mode?
+    if (cwipi.isActive())
     {
-#include "cwipiInitialise.H"
+        // Pointwise interpolation
+        volPointInterpolation pInterp(
+            mesh);
+
+        // Create CWIPI coupling
+        cwipiPstream coupling(
+            runTime,
+            mesh,
+            thermo,
+            couplingFields,
+            pInterp);
+
         while (runTime.run())
         {
-#include "cwipiRunTime.H"
+            // Update CWIPI fields
+            couplingFields.update();
+
+            // Send sources at correct time step
+            if (coupling.sendNow())
+            {
+                coupling.send();
+            }
+
+            // Execute main body of solver
 #include "rhoCentralFoam.H"
+
+            // Do I/O
             runTime.write();
+
+            // Update time step of coupling
             coupling.updateTime();
+
+            // Print execution time
             runTime.printExecutionTime(Info);
         }
     }
@@ -101,9 +136,16 @@ int main(int argc, char *argv[])
     {
         while (runTime.run())
         {
-            coupling.updateFields(U, thermo);
+            // Update CWIPI fields
+            couplingFields.update();
+
+            // Execute main body of solver
 #include "rhoCentralFoam.H"
+
+            // Do I/O
             runTime.write();
+
+            // Print execution time
             runTime.printExecutionTime(Info);
         }
     }

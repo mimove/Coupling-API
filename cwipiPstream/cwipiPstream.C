@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,12 +39,13 @@ namespace Foam
 {
 
     // Constructor
-    cwipi::cwipi(
+    cwipiPstream::cwipiPstream(
         const Foam::Time &runTime,
         const fvMesh &mesh,
-        const psiThermo &thermo)
-        : isActive_(readBool(runTime.controlDict().lookup("cwipiSwitch"))),                                         // Get switch for cwipi
-          sendTag(0),                                                                                               // Set send tag to 0
+        const psiThermo &thermo,
+        cwipiFields &sourceFields,
+        const volPointInterpolation &pInterp)
+        : sendTag(0),                                                                                               // Set send tag to 0
           status(0),                                                                                                // Set status to 0
           cwipiDim(readInt(runTime.controlDict().lookup("cwipiDim"))),                                              // Get dimension
           lambVectorSwitch(static_cast<Foam::scalar>(readBool(runTime.controlDict().lookup("cwipiLambVector")))),   // Cast lamb vector coefficient to scalar
@@ -49,196 +53,62 @@ namespace Foam
           entropyDerivativeSwitch(static_cast<Foam::scalar>(readBool(runTime.controlDict().lookup("cwipiDsDt")))),  // Cast entropy material derivative coefficient to scalar
           cwipiStep(readInt(runTime.controlDict().lookup("cwipiStep"))),                                            // Get time step
           cwipiTimeStep(readInt(runTime.controlDict().lookup("cwipiStep"))),                                        // Assign time step
-          UMean_(
-              IOobject(
-                  "UMean",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::MUST_READ,
-                  IOobject::AUTO_WRITE),
-              mesh),
-          rhoMean_(
-              IOobject(
-                  "rhoMean",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::MUST_READ,
-                  IOobject::AUTO_WRITE),
-              mesh),
-          LMean_(
-              IOobject(
-                  "LMean",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::MUST_READ,
-                  IOobject::AUTO_WRITE),
-              mesh),
-          sMean_(
-              IOobject(
-                  "sMean",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::MUST_READ,
-                  IOobject::AUTO_WRITE),
-              mesh),
-          cMean_(
-              IOobject(
-                  "cMean",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::MUST_READ,
-                  IOobject::AUTO_WRITE),
-              mesh),
-          TMean_(
-              IOobject(
-                  "TMean",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::MUST_READ,
-                  IOobject::AUTO_WRITE),
-              mesh),
-          sourceDamping_(
-              IOobject(
-                  "sourceDamping",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::READ_IF_PRESENT,
-                  IOobject::AUTO_WRITE),
-              mesh,
-              dimensionedScalar(
-                  "one",
-                  dimless,
-                  1)),
-          L_(
-              IOobject(
-                  "L",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::NO_READ,
-                  IOobject::AUTO_WRITE),
-              mesh,
-              dimensionSet(0, 1, -2, 0, 0, 0, 0)),
-          s_(
-              IOobject(
-                  "s",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::NO_READ,
-                  IOobject::AUTO_WRITE),
-              mesh,
-              dimensionSet(0, 2, -2, -1, 0, 0, 0)),
-          c_(
-              IOobject(
-                  "c",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::NO_READ,
-                  IOobject::AUTO_WRITE),
-              mesh,
-              dimensionSet(0, 1, -1, 0, 0, 0, 0)),
-          LPrime_(
-              IOobject(
-                  "LPrime",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::NO_READ,
-                  IOobject::NO_WRITE),
-              mesh,
-              dimensionSet(0, 1, -2, 0, 0, 0, 0)),
-          ThetaPrime_(
-              IOobject(
-                  "ThetaPrime",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::NO_READ,
-                  IOobject::NO_WRITE),
-              mesh,
-              dimensionSet(0, 1, -2, 0, 0, 0, 0)),
-          sPrime_(
-              IOobject(
-                  "sPrime",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::NO_READ,
-                  IOobject::NO_WRITE),
-              mesh,
-              dimensionSet(0, 2, -2, -1, 0, 0, 0)),
-          TPrime_(
-              IOobject(
-                  "TPrime",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::NO_READ,
-                  IOobject::NO_WRITE),
-              mesh,
-              dimensionSet(0, 0, 0, 1, 0, 0, 0)),
-          F_p_(
-              IOobject(
-                  "F_p_",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::NO_READ,
-                  IOobject::NO_WRITE),
-              mesh,
-              dimensionSet(1, -3, -1, 0, 0, 0, 0)),
-          F_u_(
-              IOobject(
-                  "F_u_",
-                  runTime.timeName(),
-                  mesh,
-                  IOobject::NO_READ,
-                  IOobject::NO_WRITE),
-              mesh,
-              dimensionSet(0, 1, -2, 0, 0, 0, 0))
+          UMean_(IOobject("UMean", runTime.timeName(), mesh, IOobject::MUST_READ, IOobject::AUTO_WRITE), mesh),
+          rhoMean_(IOobject("rhoMean", runTime.timeName(), mesh, IOobject::MUST_READ, IOobject::AUTO_WRITE), mesh),
+          LMean_(IOobject("LMean", runTime.timeName(), mesh, IOobject::MUST_READ, IOobject::AUTO_WRITE), mesh),
+          sMean_(IOobject("sMean", runTime.timeName(), mesh, IOobject::MUST_READ, IOobject::AUTO_WRITE), mesh),
+          cMean_(IOobject("cMean", runTime.timeName(), mesh, IOobject::MUST_READ, IOobject::AUTO_WRITE), mesh),
+          TMean_(IOobject("TMean", runTime.timeName(), mesh, IOobject::MUST_READ, IOobject::AUTO_WRITE), mesh),
+          sourceDamping_(IOobject("sourceDamping", runTime.timeName(), mesh, IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE), mesh, dimensionedScalar("one", dimless, 1)),
+          LPrime_(IOobject("LPrime", runTime.timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE), mesh, dimensionSet(0, 1, -2, 0, 0, 0, 0)),
+          ThetaPrime_(IOobject("ThetaPrime", runTime.timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE), mesh, dimensionSet(0, 1, -2, 0, 0, 0, 0)),
+          sPrime_(IOobject("sPrime", runTime.timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE), mesh, dimensionSet(0, 2, -2, -1, 0, 0, 0)),
+          TPrime_(IOobject("TPrime", runTime.timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE), mesh, dimensionSet(0, 0, 0, 1, 0, 0, 0)),
+          F_p_(IOobject("F_p_", runTime.timeName(), mesh, IOobject::NO_READ, IOobject::AUTO_WRITE), mesh, dimensionSet(1, -3, -1, 0, 0, 0, 0)),
+          F_u_(IOobject("F_u_", runTime.timeName(), mesh, IOobject::NO_READ, IOobject::AUTO_WRITE), mesh, dimensionSet(0, 1, -2, 0, 0, 0, 0)),
+          mesh_(mesh),
+          thermo_(thermo),
+          sourceFields_(sourceFields),
+          pInterp_(pInterp),
+          F_0_p_(pInterp_.interpolate(F_p_)),
+          F_0_u_(pInterp_.interpolate(F_u_))
     {
-        if (isActive() == true)
+        switch (cwipiDim)
         {
-            switch (cwipiDim)
-            {
-            case 2:
-                Info << "Coupling enabled with 2 physical dimensions" << endl;
-                break;
-            case 3:
-                Info << "Coupling enabled with 3 physical dimensions" << endl;
-                break;
-            default:
-                throw std::invalid_argument("Variable cwipiDim should be 2 or 3.");
-                break;
-            }
+        case 2:
+            Info << "Coupling enabled with 2 physical dimensions" << endl;
+            break;
+        case 3:
+            Info << "Coupling enabled with 3 physical dimensions" << endl;
+            break;
+        default:
+            throw std::invalid_argument("Variable cwipiDim should be 2 or 3.");
+            break;
         }
-    }
 
-    // Destructor
-    cwipi::~cwipi()
-    {
-    }
-
-    // Establish coupling
-    void cwipi::createCoupling(const fvMesh &mesh)
-    {
         // Resize mesh vectors to fit
-        pointCoords.resize(3 * mesh.nPoints());
-        connecIdx.resize(mesh.nCells() + 1);
-        connec.resize(mesh.nCells() * 8);
-        fieldsToSend.resize((cwipiDim + 1) * mesh.nPoints());
+        pointCoords.resize(3 * mesh_.nPoints());
+        connecIdx.resize(mesh_.nCells() + 1);
+        connec.resize(mesh_.nCells() * 8);
+        fieldsToSend.resize((cwipiDim + 1) * mesh_.nPoints());
 
         // Create mesh connectivity list
-        forAll(mesh.points(), i)
+        forAll(mesh_.points(), i)
         {
-            pointCoords[3 * i + 0] = mesh.points()[i].x();
-            pointCoords[3 * i + 1] = mesh.points()[i].y();
-            pointCoords[3 * i + 2] = mesh.points()[i].z();
+            pointCoords[3 * i + 0] = mesh_.points()[i].x();
+            pointCoords[3 * i + 1] = mesh_.points()[i].y();
+            pointCoords[3 * i + 2] = mesh_.points()[i].z();
         }
         connecIdx[0] = 0;
-        forAll(mesh.cells(), i)
+        forAll(mesh_.cells(), i)
         {
             connecIdx[i + 1] = connecIdx[i] + 8;
         }
-        forAll(mesh.cells(), i)
+        forAll(mesh_.cells(), i)
         {
-            forAll(mesh.cellShapes()[i], j)
+            forAll(mesh_.cellShapes()[i], j)
             {
-                connec[8 * i + j] = mesh.cellShapes()[i][j] + 1;
+                connec[8 * i + j] = mesh_.cellShapes()[i][j] + 1;
             }
         }
 
@@ -293,8 +163,8 @@ namespace Foam
         // Define mesh and locate interpolation
         cwipi_define_mesh(
             "cwipiFoam",
-            mesh.nPoints(),
-            mesh.nCells(),
+            mesh_.nPoints(),
+            mesh_.nCells(),
             pointCoords.data(),
             connecIdx.data(),
             connec.data());
@@ -302,36 +172,16 @@ namespace Foam
             "cwipiFoam");
     }
 
-    // Send fields
-    void cwipi::send(
-        const pointScalarField &F_0_p,
-        const pointVectorField &F_0_u,
-        const fvMesh &mesh)
+    // Destructor
+    cwipiPstream::~cwipiPstream()
     {
-        // Assign fieldsToSend for either 2 or 3d case, otherwise error
-        switch (cwipiDim)
-        {
-        case 2:
-            forAll(mesh.points(), i)
-            {
-                fieldsToSend[((cwipiDim + 1) * i) + 0] = F_0_p()[i];
-                fieldsToSend[((cwipiDim + 1) * i) + 1] = F_0_u()[i].x();
-                fieldsToSend[((cwipiDim + 1) * i) + 2] = F_0_u()[i].y();
-            }
-            break;
-        case 3:
-            forAll(mesh.points(), i)
-            {
-                fieldsToSend[((cwipiDim + 1) * i) + 0] = F_0_p()[i];
-                fieldsToSend[((cwipiDim + 1) * i) + 1] = F_0_u()[i].x();
-                fieldsToSend[((cwipiDim + 1) * i) + 2] = F_0_u()[i].y();
-                fieldsToSend[((cwipiDim + 1) * i) + 3] = F_0_u()[i].z();
-            }
-            break;
-        default:
-            throw std::invalid_argument("Variable cwipiDim should be 2 or 3.");
-            break;
-        }
+    }
+
+    // Send fields
+    void cwipiPstream::send()
+    {
+        // Update source fields
+        updateSources();
 
         // Send data
         cwipi_issend(
@@ -360,19 +210,23 @@ namespace Foam
         }
     }
 
-    void cwipi::updateTime()
+    // Advance time step
+    void cwipiPstream::updateTime()
     {
         // Compare time step to step
         if (cwipiTimeStep == cwipiStep)
         {
             // Wait
-            Info << "Before wait." << endl;
-            cwipi_wait_issend("cwipiFoam", status);
-            Info << "After wait." << endl;
+            cwipi_wait_issend(
+                "cwipiFoam",
+                status);
 
             // Reset counter to 0
-            cwipiTimeStep = 0;
+            // cwipiTimeStep = 0;
         }
+
+        // Use modulo operator (think this is correct?)
+        cwipiTimeStep = cwipiTimeStep % cwipiStep;
 
         // Advance time step
         cwipiTimeStep = cwipiTimeStep + 1;
