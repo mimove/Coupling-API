@@ -99,7 +99,17 @@ The aforementioned combination of parameters enables CWIPI coupling for a Nektar
 
 The cwipiStep parameter governs the frequency with which the source fields are sent to AcousticSolver; this parameter must be defined such that cwipiStep(openfoam) * timeStep(openfoam) = ReceiveSteps(Nektar++) * TimeStep(Nektar++), i.e. that the two solvers step through the same amount of simulated time for every invocation of the send() method.  As an example, a value of timeStep for the OpenFOAM solver of 1e-6 and a TimeStep value pf 1e-7 in Nektar++ necessitates cwipiStep = 1 and ReceiveStep = 10, since the ratio of time steps is 1/10.
 
-Installation:  
+The ordinary logic of the solver is then executed; for the sake of readability, this has been moved into a header file inserted as:
+
+    #include "rhoCentralFoam.H"
+
+The solver then performs its normal I/O and updates the time step of the coupling object, before returning to the beginning of the loop:
+
+    runTime.write();
+    coupling.updateTime();
+    runTime.printExecutionTime(Info);
+
+# Installation instructions:
 1) Compile Nektar++ with AcousticSolver and CWIPI; install into $HOME/opt  
 2) Compile OpenFOAM-v2212
 3) Create a file named loadNektar.sh
