@@ -151,7 +151,7 @@ namespace Foam
             const Foam::Time &runTime,
             const fvMesh &mesh,
             const psiThermo &thermo,
-            cwipiFields &sourceFields,
+            const cwipiFields &sourceFields,
             const volPointInterpolation &pInterp);
 
         // Default destructor
@@ -210,18 +210,18 @@ namespace Foam
             F_0_p_ = pInterp_.interpolate(F_p());
             F_0_u_ = pInterp_.interpolate(F_u());
 
-            // Assign fieldsToSend for either 2 or 3d case, otherwise error
-            switch (dim())
+            // Assign fieldsToSend for either 2D or 3D case
+            if (dim() == 2)
             {
-            case 2:
                 forAll(mesh_.points(), i)
                 {
                     fieldsToSend[((dim() + 1) * i) + 0] = F_0_p()[i];
                     fieldsToSend[((dim() + 1) * i) + 1] = F_0_u()[i].x();
                     fieldsToSend[((dim() + 1) * i) + 2] = F_0_u()[i].y();
                 }
-                break;
-            case 3:
+            }
+            else
+            {
                 forAll(mesh_.points(), i)
                 {
                     fieldsToSend[((dim() + 1) * i) + 0] = F_0_p()[i];
@@ -229,10 +229,6 @@ namespace Foam
                     fieldsToSend[((dim() + 1) * i) + 2] = F_0_u()[i].y();
                     fieldsToSend[((dim() + 1) * i) + 3] = F_0_u()[i].z();
                 }
-                break;
-            default:
-                throw std::invalid_argument("Variable cwipiDim should be 2 or 3.");
-                break;
             }
         }
 
@@ -272,7 +268,7 @@ namespace Foam
         const psiThermo &thermo_;
 
         // Cwipi fields object
-        cwipiFields &sourceFields_;
+        const cwipiFields &sourceFields_;
 
         // Pointwise interpolation
         const volPointInterpolation &pInterp_;

@@ -43,7 +43,7 @@ namespace Foam
         const Foam::Time &runTime,
         const fvMesh &mesh,
         const psiThermo &thermo,
-        cwipiFields &sourceFields,
+        const cwipiFields &sourceFields,
         const volPointInterpolation &pInterp)
         : sendTag(0),                                                                                               // Set send tag to 0
           status(0),                                                                                                // Set status to 0
@@ -73,12 +73,16 @@ namespace Foam
           F_0_p_(pInterp_.interpolate(F_p_)),
           F_0_u_(pInterp_.interpolate(F_u_))
     {
+        // Catch incorrect parameter at start, no need to throw in updateSources()
+        // Also assign sending field names
         switch (cwipiDim)
         {
         case 2:
+            sourceFieldNames = "F_0_p,F_0_u,F_0_v";
             Info << "Coupling enabled with 2 physical dimensions" << endl;
             break;
         case 3:
+            sourceFieldNames = "F_0_p,F_0_u,F_0_v,F_0_w";
             Info << "Coupling enabled with 3 physical dimensions" << endl;
             break;
         default:
@@ -110,20 +114,6 @@ namespace Foam
             {
                 connec[8 * i + j] = mesh_.cellShapes()[i][j] + 1;
             }
-        }
-
-        // Assign field names for either 2 or 3d case, otherwise error
-        switch (cwipiDim)
-        {
-        case 2:
-            sourceFieldNames = "F_0_p,F_0_u,F_0_v";
-            break;
-        case 3:
-            sourceFieldNames = "F_0_p,F_0_u,F_0_v,F_0_w";
-            break;
-        default:
-            throw std::invalid_argument("Variable cwipiDim should be 2 or 3.");
-            break;
         }
 
         // Add local control parameters
@@ -220,9 +210,6 @@ namespace Foam
             cwipi_wait_issend(
                 "cwipiFoam",
                 status);
-
-            // Reset counter to 0
-            // cwipiTimeStep = 0;
         }
 
         // Use modulo operator (think this is correct?)
