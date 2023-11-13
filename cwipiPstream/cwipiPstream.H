@@ -178,14 +178,7 @@ namespace Foam
         // Evaluate send condition
         inline const Foam::Switch sendNow() const
         {
-            if (cwipiTimeStep == cwipiStep)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return (cwipiTimeStep == cwipiStep);
         }
 
     private:
